@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getQuality } from "../services/api";
 import type { QualityAssessment } from "../types";
+import { useLang } from "../i18n/LangContext";
 
 const gradeBadge: Record<string, string> = {
   export_premium: "badge-gold",
@@ -10,6 +11,7 @@ const gradeBadge: Record<string, string> = {
 };
 
 export default function Quality() {
+  const { t } = useLang();
   const [rows, setRows] = useState<QualityAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,7 +27,7 @@ export default function Quality() {
     return (
       <div className="loading">
         <div className="spinner" />
-        Loading quality assessments...
+        {t("quality.loading")}
       </div>
     );
 
@@ -34,8 +36,8 @@ export default function Quality() {
   return (
     <>
       <div className="page-header">
-        <h2>Quality Assessments</h2>
-        <p>Flower quality grading and inspection results</p>
+        <h2>{t("quality.title")}</h2>
+        <p>{t("quality.subtitle")}</p>
       </div>
 
       <div className="card">
@@ -43,14 +45,14 @@ export default function Quality() {
           <table>
             <thead>
               <tr>
-                <th>Batch</th>
-                <th>Inspector</th>
-                <th>Straightness</th>
-                <th>Petals</th>
-                <th>Color Intensity</th>
-                <th>Blemish %</th>
-                <th>Vase Life (days)</th>
-                <th>Grade</th>
+                <th>{t("quality.batch")}</th>
+                <th>{t("quality.inspector")}</th>
+                <th>{t("quality.straightness")}</th>
+                <th>{t("quality.petals")}</th>
+                <th>{t("quality.colorIntensity")}</th>
+                <th>{t("quality.blemish")}</th>
+                <th>{t("quality.vaseLife")}</th>
+                <th>{t("quality.grade")}</th>
               </tr>
             </thead>
             <tbody>

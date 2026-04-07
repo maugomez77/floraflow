@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getStats, getDemand, getWeatherAlerts, getSignals } from "../services/api";
 import type { FlowStats, MarketDemand, WeatherAlert, PriceSignal } from "../types";
+import { useLang } from "../i18n/LangContext";
 
 const formatMXN = (v: number) =>
   `$${v.toLocaleString("es-MX", { minimumFractionDigits: 0 })}`;
@@ -44,6 +45,7 @@ const eventLabels: Record<string, string> = {
 };
 
 export default function Dashboard() {
+  const { t } = useLang();
   const [stats, setStats] = useState<FlowStats | null>(null);
   const [demand, setDemand] = useState<MarketDemand[]>([]);
   const [alerts, setAlerts] = useState<WeatherAlert[]>([]);
@@ -66,7 +68,7 @@ export default function Dashboard() {
     return (
       <div className="loading">
         <div className="spinner" />
-        Loading floriculture data...
+        {t("dashboard.loading")}
       </div>
     );
   }
@@ -89,39 +91,39 @@ export default function Dashboard() {
   return (
     <>
       <div className="page-header">
-        <h2>Floriculture Dashboard</h2>
-        <p>Estado de Mexico flower production overview</p>
+        <h2>{t("dashboard.title")}</h2>
+        <p>{t("dashboard.subtitle")}</p>
       </div>
 
       {/* KPI cards */}
       <div className="kpi-grid">
         <div className="kpi-card">
           <Warehouse size={24} className="kpi-icon" />
-          <span className="kpi-label">Greenhouses</span>
+          <span className="kpi-label">{t("dashboard.greenhouses")}</span>
           <span className="kpi-value">{stats?.total_greenhouses ?? 0}</span>
         </div>
         <div className="kpi-card">
           <Ruler size={24} className="kpi-icon" />
-          <span className="kpi-label">Total Area (m2)</span>
+          <span className="kpi-label">{t("dashboard.area")}</span>
           <span className="kpi-value">
             {formatNumber(stats?.total_area_m2 ?? 0)}
           </span>
         </div>
         <div className="kpi-card">
           <Truck size={24} className="kpi-icon" />
-          <span className="kpi-label">Active Shipments</span>
+          <span className="kpi-label">{t("dashboard.shipments")}</span>
           <span className="kpi-value">{stats?.active_shipments ?? 0}</span>
         </div>
         <div className="kpi-card">
           <Sprout size={24} className="kpi-icon" />
-          <span className="kpi-label">Weekly Stems</span>
+          <span className="kpi-label">{t("dashboard.stems")}</span>
           <span className="kpi-value">
             {formatNumber(stats?.weekly_stems_shipped ?? 0)}
           </span>
         </div>
         <div className="kpi-card">
           <DollarSign size={24} className="kpi-icon" />
-          <span className="kpi-label">Revenue MTD (MXN)</span>
+          <span className="kpi-label">{t("dashboard.revenue")}</span>
           <span className="kpi-value">
             {formatMXN(stats?.revenue_mtd_mxn ?? 0)}
           </span>
@@ -134,12 +136,12 @@ export default function Dashboard() {
           <div className="card-header">
             <h3>
               <AlertTriangle size={18} style={{ marginRight: 8, verticalAlign: "middle" }} />
-              Weather Alerts
+              {t("dashboard.alerts")}
             </h3>
           </div>
           {alerts.length === 0 ? (
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              No active weather alerts
+              {t("dashboard.noAlerts")}
             </p>
           ) : (
             alerts.slice(0, 5).map((a) => (
@@ -161,7 +163,7 @@ export default function Dashboard() {
           <div className="card-header">
             <h3>
               <TrendingUp size={18} style={{ marginRight: 8, verticalAlign: "middle" }} />
-              Market Demand by Flower
+              {t("dashboard.demand")}
             </h3>
           </div>
           {chartData.length > 0 ? (
@@ -178,7 +180,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           ) : (
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              No demand data available
+              {t("dashboard.noDemand")}
             </p>
           )}
         </div>
@@ -188,12 +190,12 @@ export default function Dashboard() {
           <div className="card-header">
             <h3>
               <TrendingUp size={18} style={{ marginRight: 8, verticalAlign: "middle" }} />
-              Price Signals
+              {t("dashboard.signals")}
             </h3>
           </div>
           {signals.length === 0 ? (
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              No active price signals
+              {t("dashboard.noSignals")}
             </p>
           ) : (
             signals.slice(0, 5).map((s) => (
@@ -215,7 +217,7 @@ export default function Dashboard() {
                       marginTop: 4,
                     }}
                   >
-                    Action: {s.recommended_action}
+                    {t("dashboard.action")}: {s.recommended_action}
                   </div>
                 </div>
               </div>
@@ -228,12 +230,12 @@ export default function Dashboard() {
           <div className="card-header">
             <h3>
               <Calendar size={18} style={{ marginRight: 8, verticalAlign: "middle" }} />
-              Upcoming Events
+              {t("dashboard.events")}
             </h3>
           </div>
           {(stats?.upcoming_events ?? []).length === 0 ? (
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              No upcoming events
+              {t("dashboard.noEvents")}
             </p>
           ) : (
             (stats?.upcoming_events ?? []).map((ev, i) => (

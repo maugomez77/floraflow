@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Brain, TrendingUp, Sprout, Users } from "lucide-react";
 import { analyzeMarket, optimizeHarvest, matchBuyers } from "../services/api";
+import { useLang } from "../i18n/LangContext";
 
 type AnalysisType = "market" | "harvest" | "buyers";
 
 export default function Analyze() {
+  const { t } = useLang();
   const [result, setResult] = useState("");
   const [activeType, setActiveType] = useState<AnalysisType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,9 +44,9 @@ export default function Analyze() {
       <div className="page-header">
         <h2>
           <Brain size={28} style={{ marginRight: 8, verticalAlign: "middle" }} />
-          AI Analysis
+          {t("analyze.title")}
         </h2>
-        <p>Claude-powered floriculture intelligence for Estado de Mexico</p>
+        <p>{t("analyze.description")}</p>
       </div>
 
       <div className="btn-group">
@@ -54,7 +56,7 @@ export default function Analyze() {
           disabled={loading}
         >
           <TrendingUp size={18} />
-          Market Analysis
+          {t("analyze.market")}
         </button>
         <button
           className={`btn ${activeType === "harvest" ? "btn-secondary" : "btn-outline"}`}
@@ -62,7 +64,7 @@ export default function Analyze() {
           disabled={loading}
         >
           <Sprout size={18} />
-          Harvest Optimization
+          {t("analyze.harvest")}
         </button>
         <button
           className={`btn ${activeType === "buyers" ? "btn-accent" : "btn-outline"}`}
@@ -70,14 +72,14 @@ export default function Analyze() {
           disabled={loading}
         >
           <Users size={18} />
-          Buyer Matching
+          {t("analyze.buyers")}
         </button>
       </div>
 
       {loading && (
         <div className="loading">
           <div className="spinner" />
-          Running AI analysis... this may take a moment
+          {t("analyze.running")}
         </div>
       )}
 
@@ -87,9 +89,9 @@ export default function Analyze() {
         <div className="card">
           <div className="card-header">
             <h3>
-              {activeType === "market" && "Market Intelligence Report"}
-              {activeType === "harvest" && "Harvest Optimization Plan"}
-              {activeType === "buyers" && "Buyer-Supply Matching Results"}
+              {activeType === "market" && t("analyze.marketResult")}
+              {activeType === "harvest" && t("analyze.harvestResult")}
+              {activeType === "buyers" && t("analyze.buyersResult")}
             </h3>
           </div>
           <div className="ai-result">{result}</div>

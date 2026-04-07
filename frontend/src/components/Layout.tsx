@@ -9,27 +9,72 @@ import {
   Brain,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useLang } from "../i18n/LangContext";
 
-const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/greenhouses", label: "Greenhouses", icon: Flower2 },
-  { to: "/batches", label: "Batches", icon: Package },
-  { to: "/shipments", label: "Shipments", icon: Truck },
-  { to: "/orders", label: "Orders", icon: ShoppingCart },
-  { to: "/quality", label: "Quality", icon: CheckCircle },
-  { to: "/analyze", label: "AI Analysis", icon: Brain },
+const navKeys = [
+  { to: "/", key: "nav.dashboard", icon: LayoutDashboard },
+  { to: "/greenhouses", key: "nav.greenhouses", icon: Flower2 },
+  { to: "/batches", key: "nav.batches", icon: Package },
+  { to: "/shipments", key: "nav.shipments", icon: Truck },
+  { to: "/orders", key: "nav.orders", icon: ShoppingCart },
+  { to: "/quality", key: "nav.quality", icon: CheckCircle },
+  { to: "/analyze", key: "nav.analyze", icon: Brain },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
+  const { lang, setLang, t } = useLang();
+
   return (
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-header">
-          <h1>FloraFlow</h1>
-          <div className="subtitle">Estado de Mexico Floriculture</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h1>FloraFlow</h1>
+            <div
+              style={{
+                display: "inline-flex",
+                borderRadius: 20,
+                overflow: "hidden",
+                border: "1px solid rgba(255,255,255,0.3)",
+                fontSize: "0.7rem",
+                fontWeight: 600,
+                letterSpacing: "0.5px",
+              }}
+            >
+              <button
+                onClick={() => setLang("es")}
+                style={{
+                  padding: "4px 10px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: lang === "es" ? "rgba(255,255,255,0.25)" : "transparent",
+                  color: lang === "es" ? "#fff" : "rgba(255,255,255,0.6)",
+                  fontWeight: lang === "es" ? 700 : 500,
+                  transition: "all 0.2s",
+                }}
+              >
+                ES
+              </button>
+              <button
+                onClick={() => setLang("en")}
+                style={{
+                  padding: "4px 10px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: lang === "en" ? "rgba(255,255,255,0.25)" : "transparent",
+                  color: lang === "en" ? "#fff" : "rgba(255,255,255,0.6)",
+                  fontWeight: lang === "en" ? 700 : 500,
+                  transition: "all 0.2s",
+                }}
+              >
+                EN
+              </button>
+            </div>
+          </div>
+          <div className="subtitle">{t("app.subtitle")}</div>
         </div>
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
+          {navKeys.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -37,7 +82,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               className={({ isActive }) => (isActive ? "active" : "")}
             >
               <item.icon />
-              <span>{item.label}</span>
+              <span>{t(item.key)}</span>
             </NavLink>
           ))}
         </nav>

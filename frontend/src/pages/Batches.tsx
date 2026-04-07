@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getBatches } from "../services/api";
 import type { FlowerBatch } from "../types";
+import { useLang } from "../i18n/LangContext";
 
 const gradeBadge: Record<string, string> = {
   export_premium: "badge-gold",
@@ -10,6 +11,7 @@ const gradeBadge: Record<string, string> = {
 };
 
 export default function Batches() {
+  const { t } = useLang();
   const [rows, setRows] = useState<FlowerBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,7 +27,7 @@ export default function Batches() {
     return (
       <div className="loading">
         <div className="spinner" />
-        Loading flower batches...
+        {t("batches.loading")}
       </div>
     );
 
@@ -37,10 +39,12 @@ export default function Batches() {
   return (
     <>
       <div className="page-header">
-        <h2>Flower Batches</h2>
+        <h2>{t("batches.title")}</h2>
         <p>
-          {rows.length} batches | {totalStems.toLocaleString()} stems | $
-          {totalValue.toLocaleString()} MXN total value
+          {t("batches.summary")
+            .replace("{count}", String(rows.length))
+            .replace("{stems}", totalStems.toLocaleString())
+            .replace("{value}", totalValue.toLocaleString())}
         </p>
       </div>
 
@@ -49,15 +53,15 @@ export default function Batches() {
           <table>
             <thead>
               <tr>
-                <th>Flower</th>
-                <th>Variety</th>
-                <th>Stems</th>
-                <th>Grade</th>
-                <th>Color</th>
-                <th>Stem Length</th>
-                <th>Harvest Date</th>
-                <th>Shelf Life</th>
-                <th>Value (MXN)</th>
+                <th>{t("batches.flower")}</th>
+                <th>{t("batches.variety")}</th>
+                <th>{t("batches.stems")}</th>
+                <th>{t("batches.grade")}</th>
+                <th>{t("batches.color")}</th>
+                <th>{t("batches.length")}</th>
+                <th>{t("batches.harvest")}</th>
+                <th>{t("batches.shelf")}</th>
+                <th>{t("batches.value")}</th>
               </tr>
             </thead>
             <tbody>
@@ -76,7 +80,7 @@ export default function Batches() {
                   <td>{b.color}</td>
                   <td>{b.stem_length_cm} cm</td>
                   <td>{b.harvest_date}</td>
-                  <td>{b.shelf_life_days} days</td>
+                  <td>{b.shelf_life_days} {t("common.days")}</td>
                   <td>${b.estimated_value_mxn.toLocaleString()}</td>
                 </tr>
               ))}

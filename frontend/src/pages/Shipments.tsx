@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getShipments } from "../services/api";
 import type { ColdChainShipment } from "../types";
+import { useLang } from "../i18n/LangContext";
 
 const statusBadge: Record<string, string> = {
   harvesting: "badge-yellow",
@@ -13,6 +14,7 @@ const statusBadge: Record<string, string> = {
 };
 
 export default function Shipments() {
+  const { t } = useLang();
   const [rows, setRows] = useState<ColdChainShipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -29,7 +31,7 @@ export default function Shipments() {
     return (
       <div className="loading">
         <div className="spinner" />
-        Loading cold-chain shipments...
+        {t("shipments.loading")}
       </div>
     );
 
@@ -38,8 +40,8 @@ export default function Shipments() {
   return (
     <>
       <div className="page-header">
-        <h2>Cold-Chain Shipments</h2>
-        <p>Track flower shipments from greenhouse to market</p>
+        <h2>{t("shipments.title")}</h2>
+        <p>{t("shipments.subtitle")}</p>
       </div>
 
       <div className="card">
@@ -47,14 +49,14 @@ export default function Shipments() {
           <table>
             <thead>
               <tr>
-                <th>Origin</th>
-                <th>Destination</th>
-                <th>Status</th>
-                <th>Carrier</th>
-                <th>Truck</th>
-                <th>Temp (C)</th>
-                <th>Humidity</th>
-                <th>ETA</th>
+                <th>{t("shipments.origin")}</th>
+                <th>{t("shipments.destination")}</th>
+                <th>{t("shipments.status")}</th>
+                <th>{t("shipments.carrier")}</th>
+                <th>{t("shipments.truck")}</th>
+                <th>{t("shipments.temp")}</th>
+                <th>{t("shipments.humidity")}</th>
+                <th>{t("shipments.eta")}</th>
               </tr>
             </thead>
             <tbody>

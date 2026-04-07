@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getOrders } from "../services/api";
 import type { BuyerOrder } from "../types";
+import { useLang } from "../i18n/LangContext";
 
 const statusBadge: Record<string, string> = {
   pending: "badge-yellow",
@@ -21,6 +22,7 @@ const buyerTypeBadge: Record<string, string> = {
 };
 
 export default function Orders() {
+  const { t } = useLang();
   const [orders, setOrders] = useState<BuyerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -36,19 +38,22 @@ export default function Orders() {
     return (
       <div className="loading">
         <div className="spinner" />
-        Loading buyer orders...
+        {t("orders.loading")}
       </div>
     );
 
   if (error) return <div className="error-box">{error}</div>;
 
+  const pendingCount = orders.filter((o) => o.status === "pending").length;
+
   return (
     <>
       <div className="page-header">
-        <h2>Buyer Orders</h2>
+        <h2>{t("orders.title")}</h2>
         <p>
-          {orders.length} orders | {orders.filter((o) => o.status === "pending").length}{" "}
-          pending
+          {t("orders.summary")
+            .replace("{count}", String(orders.length))
+            .replace("{pending}", String(pendingCount))}
         </p>
       </div>
 
@@ -74,17 +79,17 @@ export default function Orders() {
                 </span>
               </div>
               <div className="order-detail">
-                Flowers: {o.flower_types_needed.join(", ")}
+                {t("orders.flowers")}: {o.flower_types_needed.join(", ")}
               </div>
               <div className="order-detail">
-                Stems: {o.stems_needed.toLocaleString()} | Quality:{" "}
+                {t("orders.stems")}: {o.stems_needed.toLocaleString()} | {t("orders.quality")}:{" "}
                 {o.quality_required.replace("_", " ")}
               </div>
               <div className="order-detail">
-                Delivery: {o.delivery_date}
+                {t("orders.delivery")}: {o.delivery_date}
               </div>
               <div className="order-detail" style={{ fontWeight: 600 }}>
-                Price Offered: ${o.price_offered_mxn.toLocaleString()} MXN
+                {t("orders.price")}: ${o.price_offered_mxn.toLocaleString()} MXN
               </div>
 
               {/* Status flow */}

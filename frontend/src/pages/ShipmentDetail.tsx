@@ -12,8 +12,10 @@ import {
 } from "recharts";
 import { getShipment } from "../services/api";
 import type { ColdChainShipment } from "../types";
+import { useLang } from "../i18n/LangContext";
 
 export default function ShipmentDetail() {
+  const { t } = useLang();
   const { id } = useParams<{ id: string }>();
   const [shipment, setShipment] = useState<ColdChainShipment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,12 +33,12 @@ export default function ShipmentDetail() {
     return (
       <div className="loading">
         <div className="spinner" />
-        Loading shipment...
+        {t("shipments.loadingDetail")}
       </div>
     );
 
   if (error) return <div className="error-box">{error}</div>;
-  if (!shipment) return <div className="error-box">Shipment not found</div>;
+  if (!shipment) return <div className="error-box">{t("shipments.notFound")}</div>;
 
   const tempData = shipment.temperature_c.map((t, i) => ({
     reading: i + 1,
@@ -47,49 +49,49 @@ export default function ShipmentDetail() {
   return (
     <>
       <div className="page-header">
-        <h2>Shipment {shipment.id}</h2>
+        <h2>{t("shipments.title")} {shipment.id}</h2>
         <p>
-          <Link to="/shipments">Shipments</Link> / {shipment.id}
+          <Link to="/shipments">{t("nav.shipments")}</Link> / {shipment.id}
         </p>
       </div>
 
       <div className="grid-2" style={{ marginBottom: 24 }}>
         <div className="card">
           <div className="card-header">
-            <h3>Shipment Details</h3>
+            <h3>{t("shipments.details")}</h3>
           </div>
           <table>
             <tbody>
               <tr>
-                <td style={{ fontWeight: 600, width: 160 }}>Origin</td>
+                <td style={{ fontWeight: 600, width: 160 }}>{t("shipments.origin")}</td>
                 <td>{shipment.origin_municipality.replace(/_/g, " ")}</td>
               </tr>
               <tr>
-                <td style={{ fontWeight: 600 }}>Destination</td>
+                <td style={{ fontWeight: 600 }}>{t("shipments.destination")}</td>
                 <td>{shipment.destination.replace(/_/g, " ")}</td>
               </tr>
               <tr>
-                <td style={{ fontWeight: 600 }}>Status</td>
+                <td style={{ fontWeight: 600 }}>{t("shipments.status")}</td>
                 <td>{shipment.status.replace(/_/g, " ")}</td>
               </tr>
               <tr>
-                <td style={{ fontWeight: 600 }}>Carrier</td>
+                <td style={{ fontWeight: 600 }}>{t("shipments.carrier")}</td>
                 <td>{shipment.carrier}</td>
               </tr>
               <tr>
-                <td style={{ fontWeight: 600 }}>Truck ID</td>
+                <td style={{ fontWeight: 600 }}>{t("shipments.truckId")}</td>
                 <td>{shipment.truck_id}</td>
               </tr>
               <tr>
-                <td style={{ fontWeight: 600 }}>Departure</td>
+                <td style={{ fontWeight: 600 }}>{t("shipments.departure")}</td>
                 <td>{shipment.departure_time || "--"}</td>
               </tr>
               <tr>
-                <td style={{ fontWeight: 600 }}>ETA</td>
+                <td style={{ fontWeight: 600 }}>{t("shipments.eta")}</td>
                 <td>{shipment.eta || "--"}</td>
               </tr>
               <tr>
-                <td style={{ fontWeight: 600 }}>Batches</td>
+                <td style={{ fontWeight: 600 }}>{t("shipments.batches")}</td>
                 <td>{shipment.batch_ids.length}</td>
               </tr>
             </tbody>
@@ -100,7 +102,7 @@ export default function ShipmentDetail() {
       {/* Temperature & Humidity Chart */}
       <div className="card">
         <div className="card-header">
-          <h3>Temperature & Humidity Readings</h3>
+          <h3>{t("shipments.tempChart")}</h3>
         </div>
         {tempData.length > 0 ? (
           <ResponsiveContainer width="100%" height={320}>
@@ -130,7 +132,7 @@ export default function ShipmentDetail() {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <p style={{ color: "var(--text-muted)" }}>No temperature readings</p>
+          <p style={{ color: "var(--text-muted)" }}>{t("shipments.noTemp")}</p>
         )}
       </div>
     </>

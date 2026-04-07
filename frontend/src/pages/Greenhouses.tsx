@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getGreenhouses } from "../services/api";
 import type { Greenhouse } from "../types";
+import { useLang } from "../i18n/LangContext";
 
 const techBadge: Record<string, string> = {
   basic: "badge-gray",
@@ -10,6 +11,7 @@ const techBadge: Record<string, string> = {
 };
 
 export default function Greenhouses() {
+  const { t } = useLang();
   const [rows, setRows] = useState<Greenhouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,7 +28,7 @@ export default function Greenhouses() {
     return (
       <div className="loading">
         <div className="spinner" />
-        Loading greenhouses...
+        {t("greenhouses.loading")}
       </div>
     );
 
@@ -35,20 +37,20 @@ export default function Greenhouses() {
   return (
     <>
       <div className="page-header">
-        <h2>Greenhouses</h2>
-        <p>Flower production facilities across Estado de Mexico</p>
+        <h2>{t("greenhouses.title")}</h2>
+        <p>{t("greenhouses.subtitle")}</p>
       </div>
       <div className="card">
         <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Municipality</th>
-                <th>Area (m2)</th>
-                <th>Flower Types</th>
-                <th>Owner</th>
-                <th>Tech Level</th>
+                <th>{t("greenhouses.name")}</th>
+                <th>{t("greenhouses.municipality")}</th>
+                <th>{t("greenhouses.area")}</th>
+                <th>{t("greenhouses.flowers")}</th>
+                <th>{t("greenhouses.owner")}</th>
+                <th>{t("greenhouses.tech")}</th>
               </tr>
             </thead>
             <tbody>
