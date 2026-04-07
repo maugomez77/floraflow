@@ -73,12 +73,12 @@ export const getWeatherAlerts = () =>
 
 // --- AI Analysis ---
 export const analyzeMarket = () =>
-  api.post<{ result: string }>("/v1/analyze").then((r) => r.data);
+  api.post<Record<string, unknown>>("/v1/analyze").then((r) => r.data);
 
 export const optimizeHarvest = () =>
-  api.post<{ result: string }>("/v1/optimize").then((r) => r.data);
+  api.post<Record<string, unknown>>("/v1/optimize").then((r) => r.data);
 
 export const matchBuyers = () =>
-  api.post<{ result: string }>("/v1/match").then((r) => r.data);
+  api.post<Record<string, unknown>>("/v1/match").then((r) => r.data);
 
 export default api;

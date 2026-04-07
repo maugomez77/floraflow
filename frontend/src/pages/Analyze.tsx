@@ -5,6 +5,36 @@ import { useLang } from "../i18n/LangContext";
 
 type AnalysisType = "market" | "harvest" | "buyers";
 
+// Simple markdown-to-HTML for rendering AI results
+function renderMarkdown(md: string) {
+  return md
+    .split("\n")
+    .map((line, i) => {
+      if (line.startsWith("### ")) return <h4 key={i}>{line.slice(4)}</h4>;
+      if (line.startsWith("## ")) return <h3 key={i}>{line.slice(3)}</h3>;
+      if (line.startsWith("# ")) return <h2 key={i}>{line.slice(2)}</h2>;
+      if (line.startsWith("---")) return <hr key={i} />;
+      if (line.startsWith("- ") || line.startsWith("• "))
+        return <li key={i} style={{ marginLeft: 16 }}>{line.slice(2)}</li>;
+      if (line.startsWith("**") && line.endsWith("**"))
+        return <p key={i}><strong>{line.slice(2, -2)}</strong></p>;
+      if (line.trim() === "") return <br key={i} />;
+      // Bold inline
+      const parts = line.split(/(\*\*.*?\*\*)/g);
+      return (
+        <p key={i}>
+          {parts.map((part, j) =>
+            part.startsWith("**") && part.endsWith("**") ? (
+              <strong key={j}>{part.slice(2, -2)}</strong>
+            ) : (
+              <span key={j}>{part}</span>
+            )
+          )}
+        </p>
+      );
+    });
+}
+
 export default function Analyze() {
   const { t } = useLang();
   const [result, setResult] = useState("");
@@ -18,7 +48,7 @@ export default function Analyze() {
     setResult("");
     setActiveType(type);
     try {
-      let data: { result: string };
+      let data: Record<string, unknown>;
       switch (type) {
         case "market":
           data = await analyzeMarket();
@@ -30,7 +60,9 @@ export default function Analyze() {
           data = await matchBuyers();
           break;
       }
-      setResult(data.result);
+      // API returns {report: ...}, {plan: ...}, or {matches: ...}
+      const text = (data.report || data.plan || data.matches || data.result || JSON.stringify(data, null, 2)) as string;
+      setResult(text);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Analysis failed";
       setError(msg);
@@ -86,15 +118,17 @@ export default function Analyze() {
       {error && <div className="error-box">{error}</div>}
 
       {result && (
-        <div className="card">
+        <div className="card" style={{ marginTop: 24 }}>
           <div className="card-header">
             <h3>
-              {activeType === "market" && t("analyze.marketResult")}
-              {activeType === "harvest" && t("analyze.harvestResult")}
-              {activeType === "buyers" && t("analyze.buyersResult")}
+              {activeType === "market" && (t("analyze.marketResult") || "Reporte de Mercado")}
+              {activeType === "harvest" && (t("analyze.harvestResult") || "Plan de Cosecha")}
+              {activeType === "buyers" && (t("analyze.buyersResult") || "Matching de Compradores")}
             </h3>
           </div>
-          <div className="ai-result">{result}</div>
+          <div className="ai-result" style={{ padding: 24, lineHeight: 1.7, maxHeight: "70vh", overflowY: "auto" }}>
+            {renderMarkdown(result)}
+          </div>
         </div>
       )}
     </>
