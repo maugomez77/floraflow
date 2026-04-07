@@ -20,65 +20,65 @@ const api = axios.create({
 });
 
 // --- Stats ---
-export const getStats = () => api.get<FlowStats>("/stats").then((r) => r.data);
+export const getStats = () => api.get<FlowStats>("/v1/stats").then((r) => r.data);
 
 // --- Greenhouses ---
 export const getGreenhouses = () =>
-  api.get<Greenhouse[]>("/greenhouses").then((r) => r.data);
+  api.get<Greenhouse[]>("/v1/greenhouses").then((r) => r.data);
 
 export const getGreenhouse = (id: string) =>
-  api.get<Greenhouse>(`/greenhouses/${id}`).then((r) => r.data);
+  api.get<Greenhouse>(`/v1/greenhouses/${id}`).then((r) => r.data);
 
 // --- Batches ---
 export const getBatches = (params?: {
   greenhouse_id?: string;
   flower_type?: string;
-}) => api.get<FlowerBatch[]>("/batches", { params }).then((r) => r.data);
+}) => api.get<FlowerBatch[]>("/v1/batches", { params }).then((r) => r.data);
 
 export const getBatch = (id: string) =>
-  api.get<FlowerBatch>(`/batches/${id}`).then((r) => r.data);
+  api.get<FlowerBatch>(`/v1/batches/${id}`).then((r) => r.data);
 
 // --- Market Demand ---
 export const getDemand = (params?: {
   flower_type?: string;
   market?: string;
-}) => api.get<MarketDemand[]>("/demand", { params }).then((r) => r.data);
+}) => api.get<MarketDemand[]>("/v1/demand", { params }).then((r) => r.data);
 
 // --- Shipments ---
 export const getShipments = (params?: { status?: string }) =>
-  api.get<ColdChainShipment[]>("/shipments", { params }).then((r) => r.data);
+  api.get<ColdChainShipment[]>("/v1/shipments", { params }).then((r) => r.data);
 
 export const getShipment = (id: string) =>
-  api.get<ColdChainShipment>(`/shipments/${id}`).then((r) => r.data);
+  api.get<ColdChainShipment>(`/v1/shipments/${id}`).then((r) => r.data);
 
 // --- Orders ---
 export const getOrders = (params?: { status?: string }) =>
-  api.get<BuyerOrder[]>("/orders", { params }).then((r) => r.data);
+  api.get<BuyerOrder[]>("/v1/orders", { params }).then((r) => r.data);
 
 // --- Quality ---
 export const getQuality = (params?: { batch_id?: string }) =>
-  api.get<QualityAssessment[]>("/quality", { params }).then((r) => r.data);
+  api.get<QualityAssessment[]>("/v1/quality", { params }).then((r) => r.data);
 
 // --- Signals ---
 export const getSignals = () =>
-  api.get<PriceSignal[]>("/signals").then((r) => r.data);
+  api.get<PriceSignal[]>("/v1/signals").then((r) => r.data);
 
 // --- Harvest Plans ---
 export const getHarvestPlans = () =>
-  api.get<HarvestPlan[]>("/harvest-plans").then((r) => r.data);
+  api.get<HarvestPlan[]>("/v1/harvest-plans").then((r) => r.data);
 
 // --- Weather Alerts ---
 export const getWeatherAlerts = () =>
-  api.get<WeatherAlert[]>("/weather-alerts").then((r) => r.data);
+  api.get<WeatherAlert[]>("/v1/weather-alerts").then((r) => r.data);
 
 // --- AI Analysis ---
 export const analyzeMarket = () =>
-  api.post<{ result: string }>("/analyze/market").then((r) => r.data);
+  api.post<{ result: string }>("/v1/analyze").then((r) => r.data);
 
 export const optimizeHarvest = () =>
-  api.post<{ result: string }>("/analyze/harvest").then((r) => r.data);
+  api.post<{ result: string }>("/v1/optimize").then((r) => r.data);
 
 export const matchBuyers = () =>
-  api.post<{ result: string }>("/analyze/buyers").then((r) => r.data);
+  api.post<{ result: string }>("/v1/match").then((r) => r.data);
 
 export default api;

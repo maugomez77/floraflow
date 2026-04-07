@@ -178,6 +178,14 @@ async def get_stats():
     return stats.model_dump(mode="json")
 
 
+# --- Weather Alerts (stored) ---
+
+@app.get("/v1/weather-alerts", response_model=list[dict])
+async def weather_alerts():
+    alerts = store.list_weather_alerts()
+    return [a.model_dump(mode="json") for a in alerts]
+
+
 # --- Weather (live) ---
 
 @app.get("/v1/weather/live")
