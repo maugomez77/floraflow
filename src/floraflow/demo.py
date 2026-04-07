@@ -497,8 +497,8 @@ async def _research_events() -> str:
 
 # ---------- Main generator ----------
 
-async def generate_demo_data() -> dict:
-    """Generate all demo data and persist to store."""
+def _build_demo_data() -> tuple:
+    """Generate all demo data objects (pure, no I/O)."""
     greenhouses = _generate_greenhouses()
     batches = _generate_batches(greenhouses)
     demand = _generate_demand()
@@ -509,6 +509,53 @@ async def generate_demo_data() -> dict:
     harvest_plans = _generate_harvest_plans(greenhouses)
     weather_alerts = _generate_weather_alerts(greenhouses)
     stats = _generate_stats(greenhouses, batches, shipments)
+    return (greenhouses, batches, demand, shipments, orders, quality,
+            signals, harvest_plans, weather_alerts, stats)
+
+
+async def async_generate_demo_data() -> dict:
+    """Generate all demo data and persist using async store (for API/DB)."""
+    (greenhouses, batches, demand, shipments, orders, quality,
+     signals, harvest_plans, weather_alerts, stats) = _build_demo_data()
+
+    # Run async research in background
+    price_info, event_info = await asyncio.gather(
+        _research_prices(),
+        _research_events(),
+    )
+
+    await store.async_save_all(
+        greenhouses=greenhouses,
+        batches=batches,
+        demand=demand,
+        shipments=shipments,
+        orders=orders,
+        quality=quality,
+        signals=signals,
+        harvest_plans=harvest_plans,
+        weather_alerts=weather_alerts,
+        stats=stats,
+    )
+
+    return {
+        "greenhouses": len(greenhouses),
+        "batches": len(batches),
+        "demand": len(demand),
+        "shipments": len(shipments),
+        "orders": len(orders),
+        "quality": len(quality),
+        "signals": len(signals),
+        "harvest_plans": len(harvest_plans),
+        "weather_alerts": len(weather_alerts),
+        "research_prices": price_info[:200] if price_info else "Sin datos en tiempo real",
+        "research_events": event_info[:200] if event_info else "Sin datos en tiempo real",
+    }
+
+
+async def generate_demo_data() -> dict:
+    """Generate all demo data and persist to store (sync-compatible wrapper)."""
+    (greenhouses, batches, demand, shipments, orders, quality,
+     signals, harvest_plans, weather_alerts, stats) = _build_demo_data()
 
     # Run async research in background
     price_info, event_info = await asyncio.gather(

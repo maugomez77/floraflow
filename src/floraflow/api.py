@@ -10,6 +10,7 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import store
+from .database import init_db
 from .models import (
     BuyerOrder,
     ColdChainShipment,
@@ -43,7 +44,9 @@ async def _background_research():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup/shutdown lifecycle — launches background research."""
+    """Startup/shutdown lifecycle — init DB and launch background research."""
+    # Initialize database tables (no-op if DATABASE_URL is not set)
+    await init_db()
     task = asyncio.create_task(_background_research())
     yield
     task.cancel()
@@ -82,13 +85,13 @@ async def health():
 
 @app.get("/v1/greenhouses", response_model=list[dict])
 async def list_greenhouses():
-    items = store.list_greenhouses()
+    items = await store.async_list_greenhouses()
     return [g.model_dump(mode="json") for g in items]
 
 
 @app.get("/v1/greenhouses/{gh_id}")
 async def get_greenhouse(gh_id: str):
-    item = store.get_greenhouse(gh_id)
+    item = await store.async_get_greenhouse(gh_id)
     if not item:
         raise HTTPException(status_code=404, detail="Greenhouse not found")
     return item.model_dump(mode="json")
@@ -101,7 +104,7 @@ async def list_batches(
     greenhouse_id: Optional[str] = Query(None),
     flower_type: Optional[str] = Query(None),
 ):
-    items = store.list_batches(greenhouse_id=greenhouse_id, flower_type=flower_type)
+    items = await store.async_list_batches(greenhouse_id=greenhouse_id, flower_type=flower_type)
     return [b.model_dump(mode="json") for b in items]
 
 
@@ -112,7 +115,7 @@ async def list_demand(
     flower_type: Optional[str] = Query(None),
     market: Optional[str] = Query(None),
 ):
-    items = store.list_demand(flower_type=flower_type, market=market)
+    items = await store.async_list_demand(flower_type=flower_type, market=market)
     return [d.model_dump(mode="json") for d in items]
 
 
@@ -122,13 +125,13 @@ async def list_demand(
 async def list_shipments(
     status: Optional[str] = Query(None),
 ):
-    items = store.list_shipments(status=status)
+    items = await store.async_list_shipments(status=status)
     return [s.model_dump(mode="json") for s in items]
 
 
 @app.get("/v1/shipments/{shipment_id}")
 async def get_shipment(shipment_id: str):
-    item = store.get_shipment(shipment_id)
+    item = await store.async_get_shipment(shipment_id)
     if not item:
         raise HTTPException(status_code=404, detail="Shipment not found")
     return item.model_dump(mode="json")
@@ -140,7 +143,7 @@ async def get_shipment(shipment_id: str):
 async def list_orders(
     status: Optional[str] = Query(None),
 ):
-    items = store.list_orders(status=status)
+    items = await store.async_list_orders(status=status)
     return [o.model_dump(mode="json") for o in items]
 
 
@@ -148,7 +151,7 @@ async def list_orders(
 
 @app.get("/v1/quality", response_model=list[dict])
 async def list_quality():
-    items = store.list_quality()
+    items = await store.async_list_quality()
     return [q.model_dump(mode="json") for q in items]
 
 
@@ -156,7 +159,7 @@ async def list_quality():
 
 @app.get("/v1/signals", response_model=list[dict])
 async def list_signals():
-    items = store.list_signals()
+    items = await store.async_list_signals()
     return [s.model_dump(mode="json") for s in items]
 
 
@@ -164,7 +167,7 @@ async def list_signals():
 
 @app.get("/v1/harvest-plans", response_model=list[dict])
 async def list_harvest_plans():
-    items = store.list_harvest_plans()
+    items = await store.async_list_harvest_plans()
     return [h.model_dump(mode="json") for h in items]
 
 
@@ -172,7 +175,7 @@ async def list_harvest_plans():
 
 @app.get("/v1/stats")
 async def get_stats():
-    stats = store.get_stats()
+    stats = await store.async_get_stats()
     if not stats:
         return {"message": "No stats available. Load demo data first."}
     return stats.model_dump(mode="json")
@@ -182,7 +185,7 @@ async def get_stats():
 
 @app.get("/v1/weather-alerts", response_model=list[dict])
 async def weather_alerts():
-    alerts = store.list_weather_alerts()
+    alerts = await store.async_list_weather_alerts()
     return [a.model_dump(mode="json") for a in alerts]
 
 
@@ -205,8 +208,8 @@ async def weather_live():
 async def analyze():
     """AI-powered market intelligence report."""
     from . import ai
-    prices = store.list_demand()
-    sigs = store.list_signals()
+    prices = await store.async_list_demand()
+    sigs = await store.async_list_signals()
     if not prices and not sigs:
         raise HTTPException(status_code=400, detail="No market data. Load demo data first.")
     try:
@@ -220,8 +223,8 @@ async def analyze():
 async def optimize():
     """AI-powered harvest timing optimization."""
     from . import ai
-    batch_list = store.list_batches()
-    demand_list = store.list_demand()
+    batch_list = await store.async_list_batches()
+    demand_list = await store.async_list_demand()
     if not batch_list:
         raise HTTPException(status_code=400, detail="No batch data. Load demo data first.")
     try:
@@ -235,8 +238,8 @@ async def optimize():
 async def match_buyers():
     """AI-powered buyer matching."""
     from . import ai
-    batch_list = store.list_batches()
-    order_list = store.list_orders()
+    batch_list = await store.async_list_batches()
+    order_list = await store.async_list_orders()
     if not batch_list or not order_list:
         raise HTTPException(status_code=400, detail="Need batches and orders. Load demo data first.")
     try:
@@ -249,9 +252,10 @@ async def match_buyers():
 @app.post("/v1/refresh")
 async def refresh_data():
     """Refresh demo data."""
-    from .demo import generate_demo_data
+    from .demo import async_generate_demo_data
     try:
-        result = await generate_demo_data()
+        await store.async_clear_all()
+        result = await async_generate_demo_data()
         return {"status": "refreshed", "counts": result}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Refresh error: {exc}")
