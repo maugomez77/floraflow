@@ -34,16 +34,31 @@ _EMPTY: dict = {
     "stats": None,
 }
 
+# In-memory cache for serverless/ephemeral environments (Render free tier)
+_cache: dict | None = None
+
 
 def load() -> dict:
-    if not STORE_PATH.exists():
-        return {k: list(v) if isinstance(v, list) else v for k, v in _EMPTY.items()}
-    return json.loads(STORE_PATH.read_text())
+    global _cache
+    if _cache is not None:
+        return _cache
+    try:
+        if STORE_PATH.exists():
+            _cache = json.loads(STORE_PATH.read_text())
+            return _cache
+    except Exception:
+        pass
+    return {k: list(v) if isinstance(v, list) else v for k, v in _EMPTY.items()}
 
 
 def save(data: dict) -> None:
-    STORE_DIR.mkdir(parents=True, exist_ok=True)
-    STORE_PATH.write_text(json.dumps(data, default=str, indent=2, ensure_ascii=False))
+    global _cache
+    _cache = data
+    try:
+        STORE_DIR.mkdir(parents=True, exist_ok=True)
+        STORE_PATH.write_text(json.dumps(data, default=str, indent=2, ensure_ascii=False))
+    except Exception:
+        pass  # Filesystem may be read-only on some platforms
 
 
 # --- Greenhouses ---
