@@ -11,11 +11,15 @@ from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, JSON, 
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-# Convert postgres:// to postgresql+asyncpg:// for SQLAlchemy
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-elif DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+# Convert to asyncpg format and fix sslmode for asyncpg compatibility
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    # asyncpg uses ssl=require, not sslmode=require
+    DATABASE_URL = DATABASE_URL.replace("?sslmode=require", "?ssl=require")
+    DATABASE_URL = DATABASE_URL.replace("&sslmode=require", "&ssl=require")
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True) if DATABASE_URL else None
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False) if engine else None
