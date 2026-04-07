@@ -52,14 +52,13 @@ export default function Dashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([getStats(), getDemand(), getWeatherAlerts(), getSignals()])
+    Promise.allSettled([getStats(), getDemand(), getWeatherAlerts(), getSignals()])
       .then(([s, d, a, sig]) => {
-        setStats(s);
-        setDemand(d);
-        setAlerts(a);
-        setSignals(sig);
+        if (s.status === "fulfilled") setStats(s.value);
+        if (d.status === "fulfilled") setDemand(d.value);
+        if (a.status === "fulfilled") setAlerts(a.value);
+        if (sig.status === "fulfilled") setSignals(sig.value);
       })
-      .catch((e) => setError(e.message || "Failed to load dashboard data"))
       .finally(() => setLoading(false));
   }, []);
 
