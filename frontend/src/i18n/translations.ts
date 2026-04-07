@@ -121,6 +121,46 @@ export const translations: Record<Lang, Record<string, string>> = {
     "analyze.harvestResult": "Plan de Optimizacion de Cosecha",
     "analyze.buyersResult": "Resultados de Matching Comprador-Oferta",
 
+    // AI Tabs
+    "ai.tab.general": "Analisis General",
+    "ai.tab.vision": "Vision AI",
+    "ai.tab.predictions": "Predicciones",
+    "ai.tab.optimization": "Optimizacion",
+
+    // Vision AI
+    "ai.vision": "Vision AI",
+    "ai.vision.grade": "Clasificacion de Calidad",
+    "ai.vision.gradeDesc": "Sube una foto de flor para clasificar su calidad",
+    "ai.vision.disease": "Deteccion de Enfermedades",
+    "ai.vision.diseaseDesc": "Detecta enfermedades y plagas en tus plantas",
+
+    // Predictive
+    "ai.predictive": "Inteligencia Predictiva",
+    "ai.predict.demand": "Pronostico de Demanda",
+    "ai.predict.demandDesc": "Predice demanda futura por tipo de flor",
+    "ai.predict.prices": "Prediccion de Precios",
+    "ai.predict.pricesDesc": "Analiza tendencias y predice precios del mercado",
+    "ai.predict.frost": "Riesgo de Heladas",
+    "ai.predict.frostDesc": "Evalua el riesgo de heladas para tus invernaderos",
+
+    // Optimization
+    "ai.optimization": "Optimizacion de Ingresos",
+    "ai.opt.pricing": "Precios Dinamicos",
+    "ai.opt.pricingDesc": "Optimiza precios en tiempo real segun oferta y demanda",
+    "ai.opt.routes": "Optimizacion de Rutas",
+    "ai.opt.routesDesc": "Encuentra las mejores rutas de entrega",
+    "ai.opt.waste": "Prediccion de Merma",
+    "ai.opt.wasteDesc": "Predice y reduce perdidas de producto",
+
+    // AI Common
+    "ai.upload": "Subir Foto",
+    "ai.selectFlower": "Tipo de Flor",
+    "ai.processing": "Procesando...",
+    "ai.run": "Ejecutar",
+    "ai.days": "Dias",
+    "ai.results": "Resultados",
+    "ai.noResults": "Sin resultados aun. Ejecuta un analisis para ver datos.",
+
     // Common
     "common.noData": "Sin datos disponibles",
     "common.loading": "Cargando...",
@@ -246,6 +286,46 @@ export const translations: Record<Lang, Record<string, string>> = {
     "analyze.marketResult": "Market Intelligence Report",
     "analyze.harvestResult": "Harvest Optimization Plan",
     "analyze.buyersResult": "Buyer-Supply Matching Results",
+
+    // AI Tabs
+    "ai.tab.general": "General Analysis",
+    "ai.tab.vision": "Vision AI",
+    "ai.tab.predictions": "Predictions",
+    "ai.tab.optimization": "Optimization",
+
+    // Vision AI
+    "ai.vision": "Vision AI",
+    "ai.vision.grade": "Quality Grading",
+    "ai.vision.gradeDesc": "Upload a flower photo to grade its quality",
+    "ai.vision.disease": "Disease Detection",
+    "ai.vision.diseaseDesc": "Detect diseases and pests in your plants",
+
+    // Predictive
+    "ai.predictive": "Predictive Intelligence",
+    "ai.predict.demand": "Demand Forecast",
+    "ai.predict.demandDesc": "Predict future demand by flower type",
+    "ai.predict.prices": "Price Prediction",
+    "ai.predict.pricesDesc": "Analyze trends and predict market prices",
+    "ai.predict.frost": "Frost Risk",
+    "ai.predict.frostDesc": "Assess frost risk for your greenhouses",
+
+    // Optimization
+    "ai.optimization": "Revenue Optimization",
+    "ai.opt.pricing": "Dynamic Pricing",
+    "ai.opt.pricingDesc": "Optimize prices in real-time based on supply and demand",
+    "ai.opt.routes": "Route Optimization",
+    "ai.opt.routesDesc": "Find the best delivery routes",
+    "ai.opt.waste": "Waste Prediction",
+    "ai.opt.wasteDesc": "Predict and reduce product losses",
+
+    // AI Common
+    "ai.upload": "Upload Photo",
+    "ai.selectFlower": "Flower Type",
+    "ai.processing": "Processing...",
+    "ai.run": "Run",
+    "ai.days": "Days",
+    "ai.results": "Results",
+    "ai.noResults": "No results yet. Run an analysis to see data.",
 
     // Common
     "common.noData": "No data available",

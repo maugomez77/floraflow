@@ -81,4 +81,43 @@ export const optimizeHarvest = () =>
 export const matchBuyers = () =>
   api.post<Record<string, unknown>>("/v1/match", {}, { timeout: 120000 }).then((r) => r.data);
 
+// --- Vision AI ---
+export const gradeFlower = (file: File, flowerType: string) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post(`/v1/vision/grade?flower_type=${flowerType}`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 120000,
+  }).then(r => r.data);
+};
+
+export const detectDisease = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post("/v1/vision/disease", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 120000,
+  }).then(r => r.data);
+};
+
+// --- Predictive Intelligence ---
+export const forecastDemand = (flowerType: string, days: number) =>
+  api.post(`/v1/predict/demand?flower_type=${flowerType}&days=${days}`, {}, { timeout: 120000 }).then(r => r.data);
+
+export const predictPrices = (flowerType: string) =>
+  api.post(`/v1/predict/prices?flower_type=${flowerType}`, {}, { timeout: 120000 }).then(r => r.data);
+
+export const assessFrost = () =>
+  api.post("/v1/predict/frost", {}, { timeout: 120000 }).then(r => r.data);
+
+// --- Revenue Optimization ---
+export const dynamicPricing = () =>
+  api.post("/v1/optimize/pricing", {}, { timeout: 120000 }).then(r => r.data);
+
+export const optimizeRoutes = () =>
+  api.post("/v1/optimize/routes", {}, { timeout: 120000 }).then(r => r.data);
+
+export const predictWaste = () =>
+  api.post("/v1/optimize/waste", {}, { timeout: 120000 }).then(r => r.data);
+
 export default api;
