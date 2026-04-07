@@ -465,9 +465,9 @@ export default function Analyze() {
 
               {gradeResult && (
                 <div className="ai-feature-result">
-                  {gradeResult.grade && (
-                    <div className="ai-grade-badge" style={{ borderColor: gradeColor(gradeResult.grade as string), color: gradeColor(gradeResult.grade as string) }}>
-                      {(gradeResult.grade as string).toUpperCase()}
+                  {typeof gradeResult.grade === "string" && (
+                    <div className="ai-grade-badge" style={{ borderColor: gradeColor(gradeResult.grade), color: gradeColor(gradeResult.grade) }}>
+                      {gradeResult.grade.toUpperCase()}
                     </div>
                   )}
                   {renderResult(gradeResult)}
@@ -517,9 +517,9 @@ export default function Analyze() {
 
               {diseaseResult && (
                 <div className="ai-feature-result">
-                  {diseaseResult.severity && (
-                    <div className="ai-severity-badge" style={{ background: severityColor(diseaseResult.severity as string), color: "white" }}>
-                      {(diseaseResult.severity as string).toUpperCase()}
+                  {typeof diseaseResult.severity === "string" && (
+                    <div className="ai-severity-badge" style={{ background: severityColor(diseaseResult.severity), color: "white" }}>
+                      {diseaseResult.severity.toUpperCase()}
                     </div>
                   )}
                   {renderResult(diseaseResult)}
