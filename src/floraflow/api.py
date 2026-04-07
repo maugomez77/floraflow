@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 from contextlib import asynccontextmanager
 from typing import Any, Optional
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, File, Query, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import store
@@ -259,3 +260,271 @@ async def refresh_data():
         return {"status": "refreshed", "counts": result}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Refresh error: {exc}")
+
+
+# =============================================================================
+# VISION AI
+# =============================================================================
+
+@app.post("/v1/vision/grade")
+async def vision_grade(file: UploadFile = File(...), flower_type: str = Query("rose")):
+    """Grade flower quality from photo using Claude Vision."""
+    from .vision import grade_flower_quality
+    try:
+        contents = await file.read()
+        image_b64 = base64.b64encode(contents).decode()
+        result = grade_flower_quality(image_b64, flower_type=flower_type)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Vision grading error: {exc}")
+
+
+@app.post("/v1/vision/disease")
+async def vision_disease(file: UploadFile = File(...)):
+    """Detect diseases from photo using Claude Vision."""
+    from .vision import detect_disease
+    try:
+        contents = await file.read()
+        image_b64 = base64.b64encode(contents).decode()
+        result = detect_disease(image_b64)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Vision disease detection error: {exc}")
+
+
+# =============================================================================
+# PREDICTIVE INTELLIGENCE
+# =============================================================================
+
+@app.post("/v1/predict/demand")
+async def predict_demand_endpoint(
+    flower_type: str = Query("rose"),
+    days: int = Query(30),
+):
+    """Forecast demand for flower type."""
+    from .predictive import forecast_demand
+    from .feeds import fetch_all_greenhouse_weather
+    demand_list = await store.async_list_demand(flower_type=flower_type)
+    if not demand_list:
+        raise HTTPException(status_code=400, detail="No demand data. Load demo data first.")
+    current_demand = [
+        {
+            "flower": d.flower_type.value,
+            "market": d.market.value,
+            "price_mxn": d.price_per_stem_mxn,
+            "demand": d.demand_level.value,
+            "trend": d.price_trend.value,
+            "event": d.event_driver,
+        }
+        for d in demand_list
+    ]
+    try:
+        weather = await fetch_all_greenhouse_weather()
+        weather_forecast = [
+            v for k, v in weather.items()
+            if not k.startswith("_") and isinstance(v, dict) and "error" not in v
+        ]
+    except Exception:
+        weather_forecast = []
+    try:
+        result = forecast_demand(flower_type, current_demand, weather_forecast, days_ahead=days)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Demand forecast error: {exc}")
+
+
+@app.post("/v1/predict/prices")
+async def predict_prices_endpoint(flower_type: str = Query("rose")):
+    """Predict prices 7 days ahead."""
+    from .predictive import predict_prices
+    from .feeds import fetch_all_greenhouse_weather
+    demand_list = await store.async_list_demand(flower_type=flower_type)
+    if not demand_list:
+        raise HTTPException(status_code=400, detail="No price data. Load demo data first.")
+    current_prices = [
+        {
+            "flower": d.flower_type.value,
+            "market": d.market.value,
+            "price_mxn": d.price_per_stem_mxn,
+            "demand": d.demand_level.value,
+            "trend": d.price_trend.value,
+        }
+        for d in demand_list
+    ]
+    try:
+        weather = await fetch_all_greenhouse_weather()
+        weather_data = [
+            v for k, v in weather.items()
+            if not k.startswith("_") and isinstance(v, dict) and "error" not in v
+        ]
+    except Exception:
+        weather_data = []
+    try:
+        result = predict_prices(flower_type, current_prices, weather_data)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Price prediction error: {exc}")
+
+
+@app.post("/v1/predict/frost")
+async def predict_frost_endpoint():
+    """Assess frost risk for all greenhouses."""
+    from .predictive import assess_frost_risk
+    from .feeds import fetch_all_greenhouse_weather
+    greenhouses = await store.async_list_greenhouses()
+    if not greenhouses:
+        raise HTTPException(status_code=400, detail="No greenhouse data. Load demo data first.")
+    gh_data = [
+        {
+            "id": g.id,
+            "name": g.name,
+            "municipality": g.municipality.value,
+            "lat": g.location_lat,
+            "lng": g.location_lng,
+            "area_m2": g.area_m2,
+            "flower_types": g.flower_types,
+        }
+        for g in greenhouses
+    ]
+    try:
+        weather = await fetch_all_greenhouse_weather()
+        weather_data = [
+            v for k, v in weather.items()
+            if not k.startswith("_") and isinstance(v, dict) and "error" not in v
+        ]
+    except Exception:
+        weather_data = []
+    try:
+        result = assess_frost_risk(weather_data, gh_data)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Frost risk assessment error: {exc}")
+
+
+# =============================================================================
+# REVENUE OPTIMIZATION
+# =============================================================================
+
+@app.post("/v1/optimize/pricing")
+async def optimize_pricing_endpoint():
+    """Dynamic pricing recommendations."""
+    from .optimization import dynamic_pricing
+    batch_list = await store.async_list_batches()
+    demand_list = await store.async_list_demand()
+    signal_list = await store.async_list_signals()
+    if not batch_list:
+        raise HTTPException(status_code=400, detail="No batch data. Load demo data first.")
+    batches_data = [
+        {
+            "flower": b.flower_type.value,
+            "variety": b.variety,
+            "stems": b.stems_count,
+            "grade": b.quality_grade.value,
+            "harvest_date": b.harvest_date,
+            "shelf_life_days": b.shelf_life_days,
+            "value_mxn": b.estimated_value_mxn,
+        }
+        for b in batch_list
+    ]
+    demand_data = [
+        {
+            "flower": d.flower_type.value,
+            "market": d.market.value,
+            "price_mxn": d.price_per_stem_mxn,
+            "demand": d.demand_level.value,
+            "trend": d.price_trend.value,
+            "event": d.event_driver,
+        }
+        for d in demand_list
+    ]
+    signal_data = [
+        {
+            "flower": s.flower_type.value,
+            "signal": s.signal_type.value,
+            "description": s.description,
+            "action": s.recommended_action,
+            "priority": s.priority.value,
+        }
+        for s in signal_list
+    ]
+    try:
+        result = dynamic_pricing(batches_data, demand_data, signal_data)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Dynamic pricing error: {exc}")
+
+
+@app.post("/v1/optimize/routes")
+async def optimize_routes_endpoint():
+    """Optimize delivery routes."""
+    from .optimization import optimize_routes
+    shipments = await store.async_list_shipments()
+    greenhouses = await store.async_list_greenhouses()
+    if not shipments:
+        raise HTTPException(status_code=400, detail="No shipment data. Load demo data first.")
+    shipment_data = [
+        {
+            "id": s.id,
+            "batch_ids": s.batch_ids,
+            "origin": s.origin_municipality.value,
+            "destination": s.destination.value,
+            "status": s.status.value,
+            "carrier": s.carrier,
+            "truck_id": s.truck_id,
+            "temperature_c": s.temperature_c,
+            "departure_time": s.departure_time,
+            "eta": s.eta,
+        }
+        for s in shipments
+    ]
+    gh_data = [
+        {
+            "id": g.id,
+            "name": g.name,
+            "municipality": g.municipality.value,
+            "lat": g.location_lat,
+            "lng": g.location_lng,
+        }
+        for g in greenhouses
+    ]
+    try:
+        result = optimize_routes(shipment_data, gh_data)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Route optimization error: {exc}")
+
+
+@app.post("/v1/optimize/waste")
+async def predict_waste_endpoint():
+    """Predict waste/spoilage risk."""
+    from .optimization import predict_waste
+    from .feeds import fetch_all_greenhouse_weather
+    shipments = await store.async_list_shipments()
+    if not shipments:
+        raise HTTPException(status_code=400, detail="No shipment data. Load demo data first.")
+    shipment_data = [
+        {
+            "id": s.id,
+            "origin": s.origin_municipality.value,
+            "destination": s.destination.value,
+            "status": s.status.value,
+            "temperature_c": s.temperature_c,
+            "humidity_pct": s.humidity_pct,
+            "departure_time": s.departure_time,
+            "eta": s.eta,
+        }
+        for s in shipments
+    ]
+    try:
+        weather = await fetch_all_greenhouse_weather()
+        weather_data = [
+            v for k, v in weather.items()
+            if not k.startswith("_") and isinstance(v, dict) and "error" not in v
+        ]
+    except Exception:
+        weather_data = []
+    try:
+        result = predict_waste(shipment_data, weather_data)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Waste prediction error: {exc}")
