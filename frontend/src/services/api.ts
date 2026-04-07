@@ -71,14 +71,14 @@ export const getHarvestPlans = () =>
 export const getWeatherAlerts = () =>
   api.get<WeatherAlert[]>("/v1/weather-alerts").then((r) => r.data);
 
-// --- AI Analysis ---
+// --- AI Analysis (longer timeout for Render cold start + Claude processing) ---
 export const analyzeMarket = () =>
-  api.post<Record<string, unknown>>("/v1/analyze").then((r) => r.data);
+  api.post<Record<string, unknown>>("/v1/analyze", {}, { timeout: 120000 }).then((r) => r.data);
 
 export const optimizeHarvest = () =>
-  api.post<Record<string, unknown>>("/v1/optimize").then((r) => r.data);
+  api.post<Record<string, unknown>>("/v1/optimize", {}, { timeout: 120000 }).then((r) => r.data);
 
 export const matchBuyers = () =>
-  api.post<Record<string, unknown>>("/v1/match").then((r) => r.data);
+  api.post<Record<string, unknown>>("/v1/match", {}, { timeout: 120000 }).then((r) => r.data);
 
 export default api;
