@@ -29,17 +29,7 @@ import {
   predictWaste,
 } from "../services/api";
 import { useLang } from "../i18n/LangContext";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-} from "recharts";
+import AIResultRenderer from "../components/AIResultRenderer";
 
 type Tab = "general" | "vision" | "predictions" | "optimization";
 type AnalysisType = "market" | "harvest" | "buyers";
@@ -290,30 +280,25 @@ export default function Analyze() {
     }
   };
 
-  // Render result data (handles both markdown text and structured JSON)
+  // Render result data using the AIResultRenderer for structured data,
+  // or markdown for text responses
   const renderResult = (data: Record<string, unknown> | null) => {
     if (!data) return null;
+    // Check if the API returned structured JSON (has known array/object keys)
+    const hasStructuredData = [
+      "recommendations", "forecast", "predictions", "optimized_routes",
+      "at_risk_shipments", "greenhouses_at_risk", "overall_risk",
+    ].some((key) => data[key] != null);
+    if (hasStructuredData) {
+      return <AIResultRenderer data={data} />;
+    }
+    // Fall back to markdown text rendering
     const text = extractText(data);
-    if (typeof text === "string") {
+    if (typeof text === "string" && text !== JSON.stringify(data, null, 2)) {
       return <div className="ai-result">{renderMarkdown(text)}</div>;
     }
-    return (
-      <pre className="ai-result" style={{ fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
-        {JSON.stringify(data, null, 2)}
-      </pre>
-    );
-  };
-
-  // Try to extract chart data from result
-  const extractChartData = (data: Record<string, unknown> | null): Array<Record<string, unknown>> | null => {
-    if (!data) return null;
-    // Look for common array fields that might contain chart data
-    for (const key of ["forecast", "predictions", "data", "daily", "prices", "demand", "items", "days"]) {
-      if (Array.isArray(data[key]) && (data[key] as unknown[]).length > 0) {
-        return data[key] as Array<Record<string, unknown>>;
-      }
-    }
-    return null;
+    // Last resort: render as formatted key-value via AIResultRenderer
+    return <AIResultRenderer data={data} />;
   };
 
   const tabs: { key: Tab; icon: React.ReactNode; label: string }[] = [
@@ -583,25 +568,6 @@ export default function Analyze() {
 
               {demandResult && (
                 <div className="ai-feature-result">
-                  {(() => {
-                    const chartData = extractChartData(demandResult);
-                    if (chartData && chartData.length > 0) {
-                      return (
-                        <div className="ai-chart-container">
-                          <ResponsiveContainer width="100%" height={200}>
-                            <BarChart data={chartData}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#e8dff0" />
-                              <XAxis dataKey={Object.keys(chartData[0])[0]} tick={{ fontSize: 11 }} />
-                              <YAxis tick={{ fontSize: 11 }} />
-                              <Tooltip />
-                              <Bar dataKey={Object.keys(chartData[0]).find(k => k !== Object.keys(chartData[0])[0]) || "value"} fill="#7b2d8e" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
                   {renderResult(demandResult)}
                 </div>
               )}
@@ -639,25 +605,6 @@ export default function Analyze() {
 
               {priceResult && (
                 <div className="ai-feature-result">
-                  {(() => {
-                    const chartData = extractChartData(priceResult);
-                    if (chartData && chartData.length > 0) {
-                      return (
-                        <div className="ai-chart-container">
-                          <ResponsiveContainer width="100%" height={200}>
-                            <LineChart data={chartData}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#e8dff0" />
-                              <XAxis dataKey={Object.keys(chartData[0])[0]} tick={{ fontSize: 11 }} />
-                              <YAxis tick={{ fontSize: 11 }} />
-                              <Tooltip />
-                              <Line type="monotone" dataKey={Object.keys(chartData[0]).find(k => k !== Object.keys(chartData[0])[0]) || "price"} stroke="#4caf50" strokeWidth={2} dot={{ fill: "#4caf50" }} />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
                   {renderResult(priceResult)}
                 </div>
               )}

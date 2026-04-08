@@ -225,7 +225,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Upcoming Events */}
+        {/* Upcoming Events — Dynamic based on today's date */}
         <div className="card">
           <div className="card-header">
             <h3>
@@ -233,23 +233,55 @@ export default function Dashboard() {
               {t("dashboard.events")}
             </h3>
           </div>
-          {(stats?.upcoming_events ?? []).length === 0 ? (
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              {t("dashboard.noEvents")}
-            </p>
-          ) : (
-            (stats?.upcoming_events ?? []).map((ev, i) => (
-              <div key={i} className="event-item">
-                <div
-                  className="event-dot"
-                  style={{ background: eventColors[ev] || "#7b2d8e" }}
-                />
-                <span style={{ fontWeight: 500, fontSize: "0.9rem" }}>
-                  {eventLabels[ev] || ev.replace("_", " ")}
-                </span>
-              </div>
-            ))
-          )}
+          {(() => {
+            const today = new Date();
+            const year = today.getFullYear();
+            const flowerEvents = [
+              { name: "San Valentín", nameEn: "Valentine's Day", date: new Date(year, 1, 14), color: "#e91e63", icon: "🌹", impact: "Rosas 300% ↑", impactEn: "Roses 300% ↑", flowers: "Rosas" },
+              { name: "Día de la Mujer", nameEn: "Women's Day", date: new Date(year, 2, 8), color: "#9c27b0", icon: "💐", impact: "Arreglos mixtos 150% ↑", impactEn: "Mixed 150% ↑", flowers: "Mixtas" },
+              { name: "Día de las Madres", nameEn: "Mother's Day", date: new Date(year, 4, 10), color: "#e91e63", icon: "🌷", impact: "TODAS las flores 200-400% ↑", impactEn: "ALL flowers 200-400% ↑", flowers: "Todas" },
+              { name: "Temp. de Bodas", nameEn: "Wedding Season", date: new Date(year, 3, 1), color: "#9c27b0", icon: "💒", impact: "Rosas blancas, liliums ↑", impactEn: "White roses, lilies ↑", flowers: "Rosas, Liliums" },
+              { name: "Día de Muertos", nameEn: "Day of the Dead", date: new Date(year, 10, 1), color: "#ff9800", icon: "🏵️", impact: "Cempasúchil, crisantemos PICO", impactEn: "Marigold, chrysanthemum PEAK", flowers: "Cempasúchil" },
+              { name: "Navidad", nameEn: "Christmas", date: new Date(year, 11, 24), color: "#4caf50", icon: "🎄", impact: "Nochebuena, rosas premium", impactEn: "Poinsettia, premium roses", flowers: "Nochebuena" },
+              // Next year's Valentine's
+              { name: "San Valentín", nameEn: "Valentine's Day", date: new Date(year + 1, 1, 14), color: "#e91e63", icon: "🌹", impact: "Rosas 300% ↑", impactEn: "Roses 300% ↑", flowers: "Rosas" },
+            ];
+            // Filter to upcoming events (next 6 months) and sort by date
+            const sixMonths = new Date(today.getTime() + 180 * 24 * 60 * 60 * 1000);
+            const upcoming = flowerEvents
+              .filter(e => e.date >= today && e.date <= sixMonths)
+              .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+            if (upcoming.length === 0) return <p style={{ color: "var(--text-muted)" }}>Sin eventos próximos</p>;
+
+            return upcoming.map((ev, i) => {
+              const daysUntil = Math.ceil((ev.date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              const isUrgent = daysUntil <= 14;
+              const isSoon = daysUntil <= 30;
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "10px 0",
+                  borderBottom: i < upcoming.length - 1 ? "1px solid #eee" : "none",
+                }}>
+                  <span style={{ fontSize: 24 }}>{ev.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{ev.name}</div>
+                    <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                      {ev.date.toLocaleDateString("es-MX", { day: "numeric", month: "short" })} — {ev.impact}
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: "#999" }}>🌸 {ev.flowers}</div>
+                  </div>
+                  <div style={{
+                    background: isUrgent ? "#e91e63" : isSoon ? "#ff9800" : ev.color,
+                    color: "white", borderRadius: 20, padding: "4px 12px",
+                    fontSize: "0.8rem", fontWeight: 700, whiteSpace: "nowrap",
+                  }}>
+                    {daysUntil === 0 ? "¡HOY!" : daysUntil === 1 ? "¡MAÑANA!" : `${daysUntil}d`}
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
       </div>
     </>
