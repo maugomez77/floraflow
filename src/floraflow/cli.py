@@ -14,6 +14,7 @@ from rich.text import Text
 
 from . import store
 from .models import (
+    AuctionStatus,
     DemandLevel,
     OrderStatus,
     PriceTrend,
@@ -605,6 +606,142 @@ def status():
             console.print(f"  {_severity_badge(a.severity.value)} [{a.municipality.value.replace('_', ' ').title()}] {a.description[:80]}")
 
     console.print(f"\n[dim]Use [bold]floraflow --help[/bold] for all commands[/dim]")
+
+
+@app.command()
+def auctions():
+    """List active auctions in the marketplace."""
+    items = store.list_auctions()
+    if not items:
+        console.print("[yellow]No hay subastas. Ejecuta [bold]floraflow demo[/bold] primero.[/yellow]")
+        return
+
+    table = Table(title="Mercado de Subastas en Tiempo Real", box=box.ROUNDED, show_lines=True)
+    table.add_column("ID", style="dim", max_width=18)
+    table.add_column("Flor", style="bold magenta")
+    table.add_column("Variedad", style="cyan")
+    table.add_column("Tallos", justify="right", style="green")
+    table.add_column("Calidad")
+    table.add_column("Precio Min", justify="right")
+    table.add_column("Oferta Actual", justify="right", style="bold green")
+    table.add_column("Compra Ya", justify="right", style="yellow")
+    table.add_column("Estado")
+    table.add_column("Expira", style="dim")
+
+    for a in items:
+        status_colors = {
+            "open": "green",
+            "bidding": "bold cyan",
+            "sold": "bold green",
+            "expired": "dim",
+            "cancelled": "red",
+        }
+        sc = status_colors.get(a.status.value, "white")
+        table.add_row(
+            a.id[:16] + "...",
+            a.flower_type.value.title(),
+            a.variety,
+            f"{a.stems_count:,}",
+            _grade_badge(a.quality_grade.value),
+            _mxn(a.min_price_mxn),
+            _mxn(a.current_bid_mxn) if a.current_bid_mxn > 0 else "[dim]Sin oferta[/dim]",
+            _mxn(a.buy_now_price_mxn) if a.buy_now_price_mxn > 0 else "[dim]N/A[/dim]",
+            f"[{sc}]{a.status.value.upper()}[/{sc}]",
+            a.expires_at[:16] if a.expires_at else "—",
+        )
+
+    console.print(table)
+
+    # Summary stats
+    open_count = len([a for a in items if a.status.value in ("open", "bidding")])
+    sold_count = len([a for a in items if a.status.value == "sold"])
+    total_value = sum(a.current_bid_mxn for a in items if a.current_bid_mxn > 0)
+    console.print(f"\n[dim]Total: {len(items)} subastas | Activas: {open_count} | "
+                  f"Vendidas: {sold_count} | Valor total ofertas: {_mxn(total_value)}[/dim]")
+
+
+@app.command()
+def satellite():
+    """Show satellite crop health monitoring for all greenhouses."""
+    from .feeds import fetch_all_crop_health
+
+    console.print("[bold cyan]Obteniendo datos de salud de cultivos...[/bold cyan]\n")
+    try:
+        results = asyncio.run(fetch_all_crop_health())
+    except Exception as exc:
+        console.print(f"[red]Error obteniendo datos: {exc}[/red]")
+        return
+
+    # Enrich with farm data
+    greenhouses = store.list_greenhouses()
+    for entry in results:
+        muni = entry.get("municipality", "")
+        entry["farm_ids"] = [g.id for g in greenhouses if g.municipality.value == muni]
+        entry["farm_count"] = len(entry["farm_ids"])
+
+    table = Table(title="Monitoreo Satelital — Salud de Cultivos", box=box.ROUNDED, show_lines=True)
+    table.add_column("Municipio", style="bold cyan")
+    table.add_column("Salud", justify="right")
+    table.add_column("NDVI Est.", justify="right")
+    table.add_column("Humedad Suelo", justify="right")
+    table.add_column("Temp Suelo", justify="right")
+    table.add_column("ET0 mm", justify="right")
+    table.add_column("Tendencia")
+    table.add_column("Granjas", justify="right")
+    table.add_column("Alertas")
+
+    for r in results:
+        score = r.get("health_score", 0)
+        if score >= 80:
+            score_color = "bold green"
+        elif score >= 60:
+            score_color = "green"
+        elif score >= 40:
+            score_color = "yellow"
+        else:
+            score_color = "bold red"
+
+        ndvi = r.get("ndvi_estimate", 0)
+        ndvi_color = "green" if ndvi >= 0.6 else "yellow" if ndvi >= 0.4 else "red"
+
+        moisture = r.get("soil_moisture", 0)
+        moisture_color = "green" if 0.15 <= moisture <= 0.35 else "yellow" if 0.10 <= moisture <= 0.40 else "red"
+
+        temp = r.get("soil_temp_c", 0)
+        temp_color = "green" if 15 <= temp <= 25 else "yellow" if 10 <= temp <= 30 else "red"
+
+        trend = r.get("trend", "stable")
+        trend_icons = {"improving": "[green]MEJORANDO[/green]", "stable": "[yellow]ESTABLE[/yellow]", "declining": "[red]DECLINANDO[/red]"}
+
+        stress = r.get("stress_indicators", [])
+        stress_text = f"[red]{len(stress)}[/red]" if stress else "[green]0[/green]"
+
+        table.add_row(
+            r.get("municipality", "").replace("_", " ").title(),
+            f"[{score_color}]{score:.0f}/100[/{score_color}]",
+            f"[{ndvi_color}]{ndvi:.3f}[/{ndvi_color}]",
+            f"[{moisture_color}]{moisture:.4f}[/{moisture_color}]",
+            f"[{temp_color}]{temp:.1f}C[/{temp_color}]",
+            f"{r.get('et0_mm', 0):.2f}",
+            trend_icons.get(trend, trend),
+            str(r.get("farm_count", 0)),
+            stress_text,
+        )
+    console.print(table)
+
+    # Show stress indicators
+    all_stress = []
+    for r in results:
+        for s in r.get("stress_indicators", []):
+            all_stress.append(f"[{r.get('municipality', '').replace('_', ' ').title()}] {s}")
+
+    if all_stress:
+        console.print(f"\n[bold yellow]Indicadores de Estres ({len(all_stress)})[/bold yellow]")
+        for s in all_stress[:10]:
+            console.print(f"  [yellow]>[/yellow] {s}")
+
+    console.print(f"\n[dim]Zonas monitoreadas: {len(results)} | "
+                  f"Use [bold]floraflow serve[/bold] + POST /v1/satellite/analyze para analisis AI[/dim]")
 
 
 @app.command()

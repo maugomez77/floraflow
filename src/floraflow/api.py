@@ -13,13 +13,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import store
 from .database import init_db
 from .models import (
+    Auction,
+    AuctionStatus,
+    Bid,
     BuyerOrder,
+    BuyerType,
     ColdChainShipment,
+    CropHealthReport,
     FlowerBatch,
     FlowStats,
     Greenhouse,
     HarvestPlan,
     MarketDemand,
+    Municipality,
     PriceSignal,
     QualityAssessment,
     WeatherAlert,
@@ -528,3 +534,277 @@ async def predict_waste_endpoint():
         return result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Waste prediction error: {exc}")
+
+
+# =============================================================================
+# AUCTION MARKETPLACE
+# =============================================================================
+
+@app.get("/v1/auctions", response_model=list[dict])
+async def list_auctions(
+    status: Optional[str] = Query(None),
+    flower_type: Optional[str] = Query(None),
+):
+    """List auctions, optionally filtered by status or flower type."""
+    items = await store.async_list_auctions(status=status, flower_type=flower_type)
+    return [a.model_dump(mode="json") for a in items]
+
+
+@app.get("/v1/auctions/{auction_id}")
+async def get_auction(auction_id: str):
+    """Get auction details with all bids."""
+    auction = await store.async_get_auction(auction_id)
+    if not auction:
+        raise HTTPException(status_code=404, detail="Subasta no encontrada")
+    bids = await store.async_list_bids(auction_id=auction_id)
+    result = auction.model_dump(mode="json")
+    result["bids"] = [b.model_dump(mode="json") for b in bids]
+    return result
+
+
+@app.post("/v1/auctions")
+async def create_auction(data: dict):
+    """Create a new auction. Seller posts a batch for bidding."""
+    from datetime import datetime, timedelta, timezone
+    required = ["greenhouse_id", "seller_name", "flower_type", "variety",
+                "stems_count", "quality_grade", "color", "stem_length_cm"]
+    for field in required:
+        if field not in data:
+            raise HTTPException(status_code=400, detail=f"Campo requerido: {field}")
+
+    # Set expiration (default 48 hours)
+    hours = data.get("duration_hours", 48)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat()
+
+    auction = Auction(
+        greenhouse_id=data["greenhouse_id"],
+        seller_name=data["seller_name"],
+        flower_type=data["flower_type"],
+        variety=data["variety"],
+        stems_count=data["stems_count"],
+        quality_grade=data["quality_grade"],
+        color=data["color"],
+        stem_length_cm=data["stem_length_cm"],
+        min_price_mxn=data.get("min_price_mxn", 0),
+        buy_now_price_mxn=data.get("buy_now_price_mxn", 0),
+        photos=data.get("photos", []),
+        expires_at=expires_at,
+    )
+    await store.async_save_auction(auction)
+    return auction.model_dump(mode="json")
+
+
+@app.post("/v1/auctions/{auction_id}/bid")
+async def place_bid(auction_id: str, data: dict):
+    """Place a bid on an auction."""
+    auction = await store.async_get_auction(auction_id)
+    if not auction:
+        raise HTTPException(status_code=404, detail="Subasta no encontrada")
+    if auction.status.value not in ("open", "bidding"):
+        raise HTTPException(status_code=400, detail=f"Subasta no acepta ofertas (status: {auction.status.value})")
+
+    amount = data.get("amount_mxn", 0)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Monto de oferta invalido")
+    if amount < auction.min_price_mxn:
+        raise HTTPException(status_code=400, detail=f"Oferta minima: ${auction.min_price_mxn:,.2f} MXN")
+    if amount <= auction.current_bid_mxn:
+        raise HTTPException(status_code=400, detail=f"Oferta debe superar ${auction.current_bid_mxn:,.2f} MXN")
+
+    bid = Bid(
+        auction_id=auction_id,
+        bidder_name=data.get("bidder_name", "Anonimo"),
+        bidder_type=data.get("bidder_type", "wholesaler"),
+        amount_mxn=amount,
+        message=data.get("message", ""),
+    )
+    await store.async_save_bid(bid)
+
+    # Update auction status and current bid
+    await store.async_update_auction_status(auction_id, "bidding", current_bid=amount)
+
+    return {"bid": bid.model_dump(mode="json"), "auction_status": "bidding", "current_bid_mxn": amount}
+
+
+@app.post("/v1/auctions/{auction_id}/buy")
+async def buy_now(auction_id: str, data: dict):
+    """Buy now at the listed price."""
+    auction = await store.async_get_auction(auction_id)
+    if not auction:
+        raise HTTPException(status_code=404, detail="Subasta no encontrada")
+    if auction.status.value not in ("open", "bidding"):
+        raise HTTPException(status_code=400, detail=f"Subasta no disponible (status: {auction.status.value})")
+    if auction.buy_now_price_mxn <= 0:
+        raise HTTPException(status_code=400, detail="Esta subasta no tiene opcion de compra inmediata")
+
+    bid = Bid(
+        auction_id=auction_id,
+        bidder_name=data.get("bidder_name", "Anonimo"),
+        bidder_type=data.get("bidder_type", "wholesaler"),
+        amount_mxn=auction.buy_now_price_mxn,
+        message="Compra inmediata (Buy Now)",
+    )
+    await store.async_save_bid(bid)
+    await store.async_update_auction_status(auction_id, "sold", current_bid=auction.buy_now_price_mxn)
+
+    return {
+        "status": "sold",
+        "buyer": bid.bidder_name,
+        "price_mxn": auction.buy_now_price_mxn,
+        "auction_id": auction_id,
+    }
+
+
+@app.put("/v1/auctions/{auction_id}/close")
+async def close_auction(auction_id: str):
+    """Close auction and sell to highest bidder."""
+    auction = await store.async_get_auction(auction_id)
+    if not auction:
+        raise HTTPException(status_code=404, detail="Subasta no encontrada")
+    if auction.status.value not in ("open", "bidding"):
+        raise HTTPException(status_code=400, detail=f"Subasta ya cerrada (status: {auction.status.value})")
+
+    bids = await store.async_list_bids(auction_id=auction_id)
+    if not bids:
+        await store.async_update_auction_status(auction_id, "expired")
+        return {"status": "expired", "reason": "Sin ofertas"}
+
+    # Find highest bid
+    highest = max(bids, key=lambda b: b.amount_mxn)
+    await store.async_update_auction_status(auction_id, "sold", current_bid=highest.amount_mxn)
+
+    return {
+        "status": "sold",
+        "winning_bid": highest.model_dump(mode="json"),
+        "total_bids": len(bids),
+        "auction_id": auction_id,
+    }
+
+
+@app.post("/v1/auctions/ai-price")
+async def ai_auction_price(data: dict):
+    """Get AI minimum price recommendation for an auction."""
+    from .optimization import set_auction_min_price
+    required = ["flower_type", "quality_grade", "stems_count"]
+    for field in required:
+        if field not in data:
+            raise HTTPException(status_code=400, detail=f"Campo requerido: {field}")
+
+    demand_list = await store.async_list_demand(flower_type=data["flower_type"])
+    signal_list = await store.async_list_signals()
+
+    demand_data = [
+        {
+            "flower": d.flower_type.value,
+            "market": d.market.value,
+            "price_mxn": d.price_per_stem_mxn,
+            "demand": d.demand_level.value,
+            "trend": d.price_trend.value,
+        }
+        for d in demand_list
+    ]
+    signal_data = [
+        {
+            "flower": s.flower_type.value,
+            "signal": s.signal_type.value,
+            "description": s.description,
+            "priority": s.priority.value,
+        }
+        for s in signal_list
+    ]
+
+    try:
+        result = set_auction_min_price(
+            flower_type=data["flower_type"],
+            quality_grade=data["quality_grade"],
+            stems=data["stems_count"],
+            demand=demand_data,
+            signals=signal_data,
+        )
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error de pricing AI: {exc}")
+
+
+# =============================================================================
+# SATELLITE CROP MONITORING
+# =============================================================================
+
+@app.get("/v1/satellite", response_model=list[dict])
+async def satellite_all():
+    """Get crop health for all greenhouse locations."""
+    from .feeds import fetch_all_crop_health
+    try:
+        results = await fetch_all_crop_health()
+
+        # Enrich with farm IDs
+        greenhouses = await store.async_list_greenhouses()
+        for entry in results:
+            muni = entry.get("municipality", "")
+            entry["farm_ids"] = [
+                g.id for g in greenhouses
+                if g.municipality.value == muni
+            ]
+
+        return results
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Error obteniendo datos satelitales: {exc}")
+
+
+@app.get("/v1/satellite/{farm_id}")
+async def satellite_farm(farm_id: str):
+    """Get crop health for a specific farm/greenhouse."""
+    from .feeds import fetch_crop_health
+    greenhouse = await store.async_get_greenhouse(farm_id)
+    if not greenhouse:
+        raise HTTPException(status_code=404, detail="Invernadero no encontrado")
+
+    try:
+        health = await fetch_crop_health(greenhouse.location_lat, greenhouse.location_lng)
+        health["farm_id"] = farm_id
+        health["farm_name"] = greenhouse.name
+        health["municipality"] = greenhouse.municipality.value
+        health["flower_types"] = greenhouse.flower_types
+        return health
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Error obteniendo datos satelitales: {exc}")
+
+
+@app.post("/v1/satellite/analyze")
+async def satellite_analyze():
+    """AI analysis of crop health data for all greenhouses."""
+    from .feeds import fetch_all_crop_health
+    from .predictive import analyze_crop_health
+
+    greenhouses = await store.async_list_greenhouses()
+    if not greenhouses:
+        raise HTTPException(status_code=400, detail="No hay invernaderos. Carga datos demo primero.")
+
+    try:
+        health_data = await fetch_all_crop_health()
+
+        # Enrich with farm IDs
+        for entry in health_data:
+            muni = entry.get("municipality", "")
+            entry["farm_ids"] = [
+                g.id for g in greenhouses
+                if g.municipality.value == muni
+            ]
+
+        gh_data = [
+            {
+                "id": g.id,
+                "name": g.name,
+                "municipality": g.municipality.value,
+                "lat": g.location_lat,
+                "lng": g.location_lng,
+                "flower_types": g.flower_types,
+            }
+            for g in greenhouses
+        ]
+
+        result = analyze_crop_health(health_data, gh_data)
+        result["raw_data"] = health_data
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error de analisis satelital: {exc}")

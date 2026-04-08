@@ -8,6 +8,9 @@ from datetime import datetime, timedelta, timezone
 
 from .models import (
     AlertType,
+    Auction,
+    AuctionStatus,
+    Bid,
     BuyerOrder,
     BuyerType,
     ColdChainShipment,
@@ -416,6 +419,120 @@ def _generate_weather_alerts(greenhouses: list[Greenhouse]) -> list[WeatherAlert
     ]
 
 
+# ---------- Auctions & Bids ----------
+
+def _generate_auctions(greenhouses: list[Greenhouse]) -> tuple[list[Auction], list[Bid]]:
+    """Generate 8 sample auctions with realistic bids."""
+    gh_map = {g.id: g for g in greenhouses}
+    auctions: list[Auction] = []
+    bids: list[Bid] = []
+
+    buyer_names = [
+        ("Flores Mayoreo Jamaica", BuyerType.WHOLESALER),
+        ("Liverpool Floral CDMX", BuyerType.RETAILER),
+        ("Eventos Elegantes SA", BuyerType.EVENT_PLANNER),
+        ("US Flowers Import Co.", BuyerType.EXPORTER),
+        ("Hilton CDMX Reforma", BuyerType.HOTEL_CHAIN),
+        ("Bodas Premium CDMX", BuyerType.EVENT_PLANNER),
+        ("Palacio de Hierro Flores", BuyerType.RETAILER),
+        ("Central de Abasto Flores", BuyerType.WHOLESALER),
+    ]
+
+    # 3 OPEN auctions
+    specs_open = [
+        (FlowerType.ROSE, "Rosa Roja Premium", QualityGrade.EXPORT_PREMIUM, "rojo", 70.0, 2000, 5.50, 8.00, AuctionStatus.OPEN),
+        (FlowerType.GERBERA, "Gerbera Naranja", QualityGrade.FIRST, "naranja", 42.0, 1200, 5.00, 7.50, AuctionStatus.OPEN),
+        (FlowerType.LILY, "Lilium Oriental Blanco", QualityGrade.EXPORT_PREMIUM, "blanco", 60.0, 500, 14.00, 20.00, AuctionStatus.OPEN),
+    ]
+
+    # 2 BIDDING auctions (with bids)
+    specs_bidding = [
+        (FlowerType.ROSE, "Rosa Blanca de Exportacion", QualityGrade.FIRST, "blanco", 65.0, 3000, 4.50, 7.00, AuctionStatus.BIDDING),
+        (FlowerType.CHRYSANTHEMUM, "Crisantemo Blanco Doble", QualityGrade.FIRST, "blanco", 50.0, 4000, 2.50, 4.00, AuctionStatus.BIDDING),
+    ]
+
+    # 2 SOLD auctions
+    specs_sold = [
+        (FlowerType.ROSE, "Rosa Rosa Spray", QualityGrade.FIRST, "rosa", 55.0, 1500, 4.00, 6.50, AuctionStatus.SOLD),
+        (FlowerType.GERBERA, "Gerbera Roja", QualityGrade.SECOND, "rojo", 38.0, 800, 5.50, 7.00, AuctionStatus.SOLD),
+    ]
+
+    # 1 EXPIRED auction
+    specs_expired = [
+        (FlowerType.CHRYSANTHEMUM, "Crisantemo Amarillo", QualityGrade.SECOND, "amarillo", 45.0, 2500, 2.00, 3.50, AuctionStatus.EXPIRED),
+    ]
+
+    all_specs = specs_open + specs_bidding + specs_sold + specs_expired
+    rose_ghs = [g for g in greenhouses if "rose" in g.flower_types]
+    other_ghs = [g for g in greenhouses if g.flower_types]
+
+    for i, (ftype, variety, grade, color, stem_len, stems, min_price, buy_now, status) in enumerate(all_specs):
+        gh = rose_ghs[i % len(rose_ghs)] if ftype == FlowerType.ROSE else other_ghs[i % len(other_ghs)]
+        total_min = round(stems * min_price, 2)
+        total_buy_now = round(stems * buy_now, 2)
+
+        current_bid = 0.0
+        if status == AuctionStatus.BIDDING:
+            current_bid = round(total_min * random.uniform(1.05, 1.30), 2)
+        elif status == AuctionStatus.SOLD:
+            current_bid = round(total_min * random.uniform(1.15, 1.45), 2)
+
+        if status == AuctionStatus.EXPIRED:
+            expires = _datetime_offset(-random.randint(1, 24))
+        elif status == AuctionStatus.SOLD:
+            expires = _datetime_offset(-random.randint(0, 6))
+        else:
+            expires = _datetime_offset(random.randint(12, 72))
+
+        auction = Auction(
+            greenhouse_id=gh.id,
+            seller_name=gh.owner,
+            flower_type=ftype,
+            variety=variety,
+            stems_count=stems,
+            quality_grade=grade,
+            color=color,
+            stem_length_cm=stem_len,
+            min_price_mxn=total_min,
+            current_bid_mxn=current_bid,
+            buy_now_price_mxn=total_buy_now,
+            status=status,
+            photos=[],
+            expires_at=expires,
+        )
+        auctions.append(auction)
+
+        # Generate bids for BIDDING and SOLD auctions
+        if status in (AuctionStatus.BIDDING, AuctionStatus.SOLD):
+            num_bids = random.randint(2, 4)
+            bid_amounts = sorted([
+                round(total_min * random.uniform(1.0, 1.4), 2)
+                for _ in range(num_bids)
+            ])
+            for j, amount in enumerate(bid_amounts):
+                buyer_name, buyer_type = random.choice(buyer_names)
+                bid = Bid(
+                    auction_id=auction.id,
+                    bidder_name=buyer_name,
+                    bidder_type=buyer_type,
+                    amount_mxn=amount,
+                    message=random.choice([
+                        "Interesado en lote completo",
+                        "Necesitamos para evento este fin de semana",
+                        "Oferta firme para exportacion",
+                        "Buen precio para nuestra tienda",
+                        "",
+                    ]),
+                )
+                bids.append(bid)
+
+            # Update current_bid to highest bid
+            if bid_amounts:
+                auction.current_bid_mxn = bid_amounts[-1]
+
+    return auctions, bids
+
+
 # ---------- Stats ----------
 
 def _generate_stats(greenhouses, batches, shipments) -> FlowStats:
@@ -508,15 +625,16 @@ def _build_demo_data() -> tuple:
     signals = _generate_signals()
     harvest_plans = _generate_harvest_plans(greenhouses)
     weather_alerts = _generate_weather_alerts(greenhouses)
+    auctions, bids = _generate_auctions(greenhouses)
     stats = _generate_stats(greenhouses, batches, shipments)
     return (greenhouses, batches, demand, shipments, orders, quality,
-            signals, harvest_plans, weather_alerts, stats)
+            signals, harvest_plans, weather_alerts, auctions, bids, stats)
 
 
 async def async_generate_demo_data() -> dict:
     """Generate all demo data and persist using async store (for API/DB)."""
     (greenhouses, batches, demand, shipments, orders, quality,
-     signals, harvest_plans, weather_alerts, stats) = _build_demo_data()
+     signals, harvest_plans, weather_alerts, auctions, bids, stats) = _build_demo_data()
 
     # Run async research in background
     price_info, event_info = await asyncio.gather(
@@ -534,6 +652,8 @@ async def async_generate_demo_data() -> dict:
         signals=signals,
         harvest_plans=harvest_plans,
         weather_alerts=weather_alerts,
+        auctions=auctions,
+        bids=bids,
         stats=stats,
     )
 
@@ -547,6 +667,8 @@ async def async_generate_demo_data() -> dict:
         "signals": len(signals),
         "harvest_plans": len(harvest_plans),
         "weather_alerts": len(weather_alerts),
+        "auctions": len(auctions),
+        "bids": len(bids),
         "research_prices": price_info[:200] if price_info else "Sin datos en tiempo real",
         "research_events": event_info[:200] if event_info else "Sin datos en tiempo real",
     }
@@ -555,7 +677,7 @@ async def async_generate_demo_data() -> dict:
 async def generate_demo_data() -> dict:
     """Generate all demo data and persist to store (sync-compatible wrapper)."""
     (greenhouses, batches, demand, shipments, orders, quality,
-     signals, harvest_plans, weather_alerts, stats) = _build_demo_data()
+     signals, harvest_plans, weather_alerts, auctions, bids, stats) = _build_demo_data()
 
     # Run async research in background
     price_info, event_info = await asyncio.gather(
@@ -573,6 +695,8 @@ async def generate_demo_data() -> dict:
         signals=signals,
         harvest_plans=harvest_plans,
         weather_alerts=weather_alerts,
+        auctions=auctions,
+        bids=bids,
         stats=stats,
     )
 
@@ -586,6 +710,8 @@ async def generate_demo_data() -> dict:
         "signals": len(signals),
         "harvest_plans": len(harvest_plans),
         "weather_alerts": len(weather_alerts),
+        "auctions": len(auctions),
+        "bids": len(bids),
         "research_prices": price_info[:200] if price_info else "Sin datos en tiempo real",
         "research_events": event_info[:200] if event_info else "Sin datos en tiempo real",
     }

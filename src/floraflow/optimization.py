@@ -116,6 +116,64 @@ Responde en JSON:
         return {"optimized_routes": [], "raw": text}
 
 
+def set_auction_min_price(
+    flower_type: str,
+    quality_grade: str,
+    stems: int,
+    demand: list,
+    signals: list,
+) -> dict:
+    """AI sets minimum auction price based on current market conditions.
+
+    Returns: {min_price_mxn, buy_now_price_mxn, reasoning, market_context}
+    """
+    client = _client()
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1000,
+        system=(
+            "Eres un experto en pricing de subastas del mercado floricola mexicano. "
+            "Estableces precios minimos competitivos que maximizan ingresos del vendedor "
+            "sin espantar compradores. Precios de referencia por tallo (MXN): "
+            "rosas $4-8, gerberas $5-7, liliums $12-20, crisantemos $2-4, "
+            "gladiolas $2-4, claveles $1.5-3, girasoles $5-10, alstroemeria $3-6. "
+            "Calidad export_premium = +40%, first = base, second = -20%, third = -40%. "
+            "Responde SOLO en JSON valido."
+        ),
+        messages=[{
+            "role": "user",
+            "content": f"""
+Establece el precio minimo de subasta para este lote:
+
+Flor: {flower_type}
+Calidad: {quality_grade}
+Tallos: {stems}
+Demanda actual: {json.dumps(demand[:10], default=str)}
+Senales de mercado: {json.dumps(signals[:5], default=str)}
+
+Responde en JSON:
+{{
+  "min_price_mxn": float,
+  "buy_now_price_mxn": float,
+  "price_per_stem_mxn": float,
+  "reasoning": "str",
+  "market_context": "str",
+  "demand_level": "low|medium|high|peak",
+  "recommended_duration_hours": int
+}}""",
+        }],
+    )
+    text = response.content[0].text
+    try:
+        return json.loads(text)
+    except Exception:
+        return {
+            "min_price_mxn": stems * 4.0,
+            "buy_now_price_mxn": stems * 6.0,
+            "reasoning": text,
+        }
+
+
 def predict_waste(shipments: list, weather: list) -> dict:
     """Estimate spoilage risk based on temperature, humidity, transport time.
 

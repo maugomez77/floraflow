@@ -266,3 +266,58 @@ class FlowStats(BaseModel):
     revenue_mtd_mxn: float = 0
     top_markets: list[str] = Field(default_factory=list)
     upcoming_events: list[str] = Field(default_factory=list)
+
+
+# --- Auction Marketplace ---
+
+class AuctionStatus(str, Enum):
+    OPEN = "open"
+    BIDDING = "bidding"
+    SOLD = "sold"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+
+class Auction(BaseModel):
+    id: str = Field(default_factory=lambda: _make_id("auc"))
+    greenhouse_id: str
+    seller_name: str
+    flower_type: FlowerType
+    variety: str
+    stems_count: int
+    quality_grade: QualityGrade
+    color: str
+    stem_length_cm: float
+    min_price_mxn: float  # AI-set minimum based on quality + demand
+    current_bid_mxn: float = 0.0
+    buy_now_price_mxn: float = 0.0
+    status: AuctionStatus = AuctionStatus.OPEN
+    photos: list[str] = Field(default_factory=list)  # base64 thumbnails or URLs
+    expires_at: str  # ISO datetime
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class Bid(BaseModel):
+    id: str = Field(default_factory=lambda: _make_id("bid"))
+    auction_id: str
+    bidder_name: str
+    bidder_type: BuyerType
+    amount_mxn: float
+    message: str = ""
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+# --- Satellite Crop Monitoring ---
+
+class CropHealthReport(BaseModel):
+    id: str = Field(default_factory=lambda: _make_id("chr"))
+    municipality: Municipality
+    farm_ids: list[str]
+    health_score: float  # 0-100
+    ndvi_estimate: float  # 0-1.0
+    soil_moisture: float
+    soil_temp_c: float
+    et0_mm: float  # evapotranspiration
+    stress_indicators: list[str]
+    trend: str  # improving, stable, declining
+    report_date: str

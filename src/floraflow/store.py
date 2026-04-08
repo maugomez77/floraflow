@@ -10,8 +10,11 @@ from typing import Any
 from sqlalchemy import select, delete
 
 from .models import (
+    Auction,
+    Bid,
     BuyerOrder,
     ColdChainShipment,
+    CropHealthReport,
     FlowerBatch,
     FlowStats,
     Greenhouse,
@@ -24,6 +27,9 @@ from .models import (
 from .database import (
     async_session,
     engine,
+    AuctionDB,
+    BidDB,
+    CropHealthReportDB,
     GreenhouseDB,
     FlowerBatchDB,
     MarketDemandDB,
@@ -52,6 +58,9 @@ _EMPTY: dict = {
     "signals": [],
     "harvest_plans": [],
     "weather_alerts": [],
+    "auctions": [],
+    "bids": [],
+    "crop_health_reports": [],
     "stats": None,
 }
 
@@ -713,6 +722,219 @@ def save_stats(stats: FlowStats) -> None:
 
 
 # =============================================================================
+# AUCTIONS
+# =============================================================================
+
+async def async_list_auctions(status: str | None = None, flower_type: str | None = None) -> list[Auction]:
+    if _use_db():
+        async with async_session() as session:
+            stmt = select(AuctionDB)
+            if status:
+                stmt = stmt.where(AuctionDB.status == status)
+            if flower_type:
+                stmt = stmt.where(AuctionDB.flower_type == flower_type)
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return [Auction(**_row_to_dict(r)) for r in rows]
+    data = load()
+    items = data.get("auctions", [])
+    if status:
+        items = [a for a in items if a["status"] == status]
+    if flower_type:
+        items = [a for a in items if a["flower_type"] == flower_type]
+    return [Auction(**a) for a in items]
+
+
+async def async_get_auction(auction_id: str) -> Auction | None:
+    if _use_db():
+        async with async_session() as session:
+            result = await session.execute(
+                select(AuctionDB).where(AuctionDB.id == auction_id)
+            )
+            row = result.scalar_one_or_none()
+            return Auction(**_row_to_dict(row)) if row else None
+    for a in load().get("auctions", []):
+        if a["id"] == auction_id:
+            return Auction(**a)
+    return None
+
+
+async def async_save_auction(auction: Auction) -> None:
+    if _use_db():
+        async with async_session() as session:
+            async with session.begin():
+                await session.execute(
+                    delete(AuctionDB).where(AuctionDB.id == auction.id)
+                )
+                session.add(_model_to_row(auction, AuctionDB))
+        return
+    data = load()
+    auctions = data.get("auctions", [])
+    data["auctions"] = [a for a in auctions if a["id"] != auction.id]
+    data["auctions"].append(auction.model_dump(mode="json"))
+    save(data)
+
+
+async def async_update_auction_status(
+    auction_id: str, status: str, current_bid: float | None = None
+) -> Auction | None:
+    auction = await async_get_auction(auction_id)
+    if not auction:
+        return None
+    auction.status = status  # type: ignore[assignment]
+    if current_bid is not None:
+        auction.current_bid_mxn = current_bid
+    await async_save_auction(auction)
+    return auction
+
+
+def list_auctions(status: str | None = None, flower_type: str | None = None) -> list[Auction]:
+    if _use_db():
+        return _run_async(async_list_auctions(status=status, flower_type=flower_type))
+    data = load()
+    items = data.get("auctions", [])
+    if status:
+        items = [a for a in items if a["status"] == status]
+    if flower_type:
+        items = [a for a in items if a["flower_type"] == flower_type]
+    return [Auction(**a) for a in items]
+
+
+def get_auction(auction_id: str) -> Auction | None:
+    if _use_db():
+        return _run_async(async_get_auction(auction_id))
+    for a in load().get("auctions", []):
+        if a["id"] == auction_id:
+            return Auction(**a)
+    return None
+
+
+def save_auction(auction: Auction) -> None:
+    if _use_db():
+        _run_async(async_save_auction(auction))
+        return
+    data = load()
+    auctions = data.get("auctions", [])
+    data["auctions"] = [a for a in auctions if a["id"] != auction.id]
+    data["auctions"].append(auction.model_dump(mode="json"))
+    save(data)
+
+
+# =============================================================================
+# BIDS
+# =============================================================================
+
+async def async_list_bids(auction_id: str | None = None) -> list[Bid]:
+    if _use_db():
+        async with async_session() as session:
+            stmt = select(BidDB)
+            if auction_id:
+                stmt = stmt.where(BidDB.auction_id == auction_id)
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return [Bid(**_row_to_dict(r)) for r in rows]
+    data = load()
+    items = data.get("bids", [])
+    if auction_id:
+        items = [b for b in items if b["auction_id"] == auction_id]
+    return [Bid(**b) for b in items]
+
+
+async def async_save_bid(bid: Bid) -> None:
+    if _use_db():
+        async with async_session() as session:
+            async with session.begin():
+                await session.execute(
+                    delete(BidDB).where(BidDB.id == bid.id)
+                )
+                session.add(_model_to_row(bid, BidDB))
+        return
+    data = load()
+    bids = data.get("bids", [])
+    data["bids"] = [b for b in bids if b["id"] != bid.id]
+    data["bids"].append(bid.model_dump(mode="json"))
+    save(data)
+
+
+def list_bids(auction_id: str | None = None) -> list[Bid]:
+    if _use_db():
+        return _run_async(async_list_bids(auction_id=auction_id))
+    data = load()
+    items = data.get("bids", [])
+    if auction_id:
+        items = [b for b in items if b["auction_id"] == auction_id]
+    return [Bid(**b) for b in items]
+
+
+def save_bid(bid: Bid) -> None:
+    if _use_db():
+        _run_async(async_save_bid(bid))
+        return
+    data = load()
+    bids = data.get("bids", [])
+    data["bids"] = [b for b in bids if b["id"] != bid.id]
+    data["bids"].append(bid.model_dump(mode="json"))
+    save(data)
+
+
+# =============================================================================
+# CROP HEALTH REPORTS
+# =============================================================================
+
+async def async_list_crop_health(municipality: str | None = None) -> list[CropHealthReport]:
+    if _use_db():
+        async with async_session() as session:
+            stmt = select(CropHealthReportDB)
+            if municipality:
+                stmt = stmt.where(CropHealthReportDB.municipality == municipality)
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return [CropHealthReport(**_row_to_dict(r)) for r in rows]
+    data = load()
+    items = data.get("crop_health_reports", [])
+    if municipality:
+        items = [c for c in items if c["municipality"] == municipality]
+    return [CropHealthReport(**c) for c in items]
+
+
+async def async_save_crop_health(report: CropHealthReport) -> None:
+    if _use_db():
+        async with async_session() as session:
+            async with session.begin():
+                await session.execute(
+                    delete(CropHealthReportDB).where(CropHealthReportDB.id == report.id)
+                )
+                session.add(_model_to_row(report, CropHealthReportDB))
+        return
+    data = load()
+    reports = data.get("crop_health_reports", [])
+    data["crop_health_reports"] = [r for r in reports if r["id"] != report.id]
+    data["crop_health_reports"].append(report.model_dump(mode="json"))
+    save(data)
+
+
+def list_crop_health(municipality: str | None = None) -> list[CropHealthReport]:
+    if _use_db():
+        return _run_async(async_list_crop_health(municipality=municipality))
+    data = load()
+    items = data.get("crop_health_reports", [])
+    if municipality:
+        items = [c for c in items if c["municipality"] == municipality]
+    return [CropHealthReport(**c) for c in items]
+
+
+def save_crop_health(report: CropHealthReport) -> None:
+    if _use_db():
+        _run_async(async_save_crop_health(report))
+        return
+    data = load()
+    reports = data.get("crop_health_reports", [])
+    data["crop_health_reports"] = [r for r in reports if r["id"] != report.id]
+    data["crop_health_reports"].append(report.model_dump(mode="json"))
+    save(data)
+
+
+# =============================================================================
 # CLEAR ALL (for refresh)
 # =============================================================================
 
@@ -730,6 +952,9 @@ async def async_clear_all() -> None:
                 await session.execute(delete(WeatherAlertDB))
                 await session.execute(delete(PriceSignalDB))
                 await session.execute(delete(HarvestPlanDB))
+                await session.execute(delete(AuctionDB))
+                await session.execute(delete(BidDB))
+                await session.execute(delete(CropHealthReportDB))
                 await session.execute(delete(StatsDB))
         return
     global _cache
@@ -758,6 +983,9 @@ async def async_save_all(
     signals: list[PriceSignal] | None = None,
     harvest_plans: list[HarvestPlan] | None = None,
     weather_alerts: list[WeatherAlert] | None = None,
+    auctions: list[Auction] | None = None,
+    bids: list[Bid] | None = None,
+    crop_health_reports: list[CropHealthReport] | None = None,
     stats: FlowStats | None = None,
 ) -> None:
     """Bulk save all data — used by demo generator."""
@@ -800,6 +1028,18 @@ async def async_save_all(
                     await session.execute(delete(WeatherAlertDB))
                     for w in weather_alerts:
                         session.add(_model_to_row(w, WeatherAlertDB))
+                if auctions is not None:
+                    await session.execute(delete(AuctionDB))
+                    for a in auctions:
+                        session.add(_model_to_row(a, AuctionDB))
+                if bids is not None:
+                    await session.execute(delete(BidDB))
+                    for b in bids:
+                        session.add(_model_to_row(b, BidDB))
+                if crop_health_reports is not None:
+                    await session.execute(delete(CropHealthReportDB))
+                    for c in crop_health_reports:
+                        session.add(_model_to_row(c, CropHealthReportDB))
                 if stats is not None:
                     await session.execute(delete(StatsDB))
                     session.add(StatsDB(id=1, **stats.model_dump(mode="json")))
@@ -824,6 +1064,12 @@ async def async_save_all(
         data["harvest_plans"] = [h.model_dump(mode="json") for h in harvest_plans]
     if weather_alerts is not None:
         data["weather_alerts"] = [w.model_dump(mode="json") for w in weather_alerts]
+    if auctions is not None:
+        data["auctions"] = [a.model_dump(mode="json") for a in auctions]
+    if bids is not None:
+        data["bids"] = [b.model_dump(mode="json") for b in bids]
+    if crop_health_reports is not None:
+        data["crop_health_reports"] = [c.model_dump(mode="json") for c in crop_health_reports]
     if stats is not None:
         data["stats"] = stats.model_dump(mode="json")
     save(data)
@@ -839,6 +1085,9 @@ def save_all(
     signals: list[PriceSignal] | None = None,
     harvest_plans: list[HarvestPlan] | None = None,
     weather_alerts: list[WeatherAlert] | None = None,
+    auctions: list[Auction] | None = None,
+    bids: list[Bid] | None = None,
+    crop_health_reports: list[CropHealthReport] | None = None,
     stats: FlowStats | None = None,
 ) -> None:
     if _use_db():
@@ -846,7 +1095,9 @@ def save_all(
             greenhouses=greenhouses, batches=batches, demand=demand,
             shipments=shipments, orders=orders, quality=quality,
             signals=signals, harvest_plans=harvest_plans,
-            weather_alerts=weather_alerts, stats=stats,
+            weather_alerts=weather_alerts, auctions=auctions,
+            bids=bids, crop_health_reports=crop_health_reports,
+            stats=stats,
         ))
         return
     # Fallback to JSON
@@ -869,6 +1120,12 @@ def save_all(
         data["harvest_plans"] = [h.model_dump(mode="json") for h in harvest_plans]
     if weather_alerts is not None:
         data["weather_alerts"] = [w.model_dump(mode="json") for w in weather_alerts]
+    if auctions is not None:
+        data["auctions"] = [a.model_dump(mode="json") for a in auctions]
+    if bids is not None:
+        data["bids"] = [b.model_dump(mode="json") for b in bids]
+    if crop_health_reports is not None:
+        data["crop_health_reports"] = [c.model_dump(mode="json") for c in crop_health_reports]
     if stats is not None:
         data["stats"] = stats.model_dump(mode="json")
     save(data)

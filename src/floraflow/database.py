@@ -174,6 +174,55 @@ class StatsDB(Base):
     upcoming_events = Column(JSON, nullable=False, default=list)
 
 
+class AuctionDB(Base):
+    __tablename__ = "auctions"
+
+    id = Column(String, primary_key=True)
+    greenhouse_id = Column(String, nullable=False, index=True)
+    seller_name = Column(String, nullable=False)
+    flower_type = Column(String, nullable=False, index=True)
+    variety = Column(String, nullable=False)
+    stems_count = Column(Integer, nullable=False)
+    quality_grade = Column(String, nullable=False)
+    color = Column(String, nullable=False)
+    stem_length_cm = Column(Float, nullable=False)
+    min_price_mxn = Column(Float, nullable=False)
+    current_bid_mxn = Column(Float, nullable=False, default=0.0)
+    buy_now_price_mxn = Column(Float, nullable=False, default=0.0)
+    status = Column(String, nullable=False, default="open", index=True)
+    photos = Column(JSON, nullable=False, default=list)
+    expires_at = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
+
+
+class BidDB(Base):
+    __tablename__ = "bids"
+
+    id = Column(String, primary_key=True)
+    auction_id = Column(String, nullable=False, index=True)
+    bidder_name = Column(String, nullable=False)
+    bidder_type = Column(String, nullable=False)
+    amount_mxn = Column(Float, nullable=False)
+    message = Column(Text, nullable=False, default="")
+    created_at = Column(String, nullable=False)
+
+
+class CropHealthReportDB(Base):
+    __tablename__ = "crop_health_reports"
+
+    id = Column(String, primary_key=True)
+    municipality = Column(String, nullable=False, index=True)
+    farm_ids = Column(JSON, nullable=False, default=list)
+    health_score = Column(Float, nullable=False)
+    ndvi_estimate = Column(Float, nullable=False)
+    soil_moisture = Column(Float, nullable=False)
+    soil_temp_c = Column(Float, nullable=False)
+    et0_mm = Column(Float, nullable=False)
+    stress_indicators = Column(JSON, nullable=False, default=list)
+    trend = Column(String, nullable=False)
+    report_date = Column(String, nullable=False)
+
+
 async def init_db() -> None:
     """Create all tables if they don't exist."""
     if engine is None:

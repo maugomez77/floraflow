@@ -111,6 +111,63 @@ Responde en JSON:
         return {"predictions": [], "price_trend": "stable", "raw": text}
 
 
+def analyze_crop_health(health_data: list, greenhouses: list) -> dict:
+    """AI analyzes satellite/sensor data and generates actionable insights.
+
+    Returns: {overall_health, at_risk_zones, recommendations,
+    irrigation_schedule, fertilization_schedule}
+    """
+    client = _client()
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=2000,
+        system=(
+            "Eres un agronomo experto en floricultura del Estado de Mexico. "
+            "Analizas datos de salud de cultivos (humedad del suelo, temperatura, "
+            "evapotranspiracion) para generar recomendaciones accionables. "
+            "Las flores necesitan: humedad del suelo 0.15-0.35 m3/m3, "
+            "temperatura 15-25C, ET0 adecuada para riego. "
+            "Responde SOLO en JSON valido."
+        ),
+        messages=[{
+            "role": "user",
+            "content": f"""
+Analiza la salud de los cultivos en estas zonas floricolas:
+
+Datos de salud: {json.dumps(health_data[:10], default=str)}
+Invernaderos: {json.dumps([{{"id": g["id"], "name": g["name"], "municipality": g["municipality"], "flowers": g.get("flower_types", [])}} for g in greenhouses[:15]], default=str)}
+
+Responde en JSON:
+{{
+  "overall_health": "excellent|good|moderate|poor|critical",
+  "overall_score": float,
+  "at_risk_zones": [
+    {{"municipality": "str", "risk_level": "low|medium|high|critical", "issue": "str", "affected_farms": int}}
+  ],
+  "recommendations": [
+    {{"priority": "urgent|high|medium|low", "action": "str", "target_zone": "str", "expected_impact": "str"}}
+  ],
+  "irrigation_schedule": [
+    {{"zone": "str", "frequency": "str", "volume_liters_m2": float, "best_time": "str"}}
+  ],
+  "fertilization_schedule": [
+    {{"zone": "str", "type": "str", "application_date": "str", "dosage": "str"}}
+  ],
+  "summary": "str"
+}}""",
+        }],
+    )
+    text = response.content[0].text
+    try:
+        return json.loads(text)
+    except Exception:
+        return {
+            "overall_health": "moderate",
+            "recommendations": [],
+            "summary": text,
+        }
+
+
 def assess_frost_risk(weather_data: list, greenhouses: list) -> dict:
     """Frost risk assessment per greenhouse based on weather + altitude + microclimate.
 
