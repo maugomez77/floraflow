@@ -10,6 +10,9 @@ import type {
   PriceSignal,
   HarvestPlan,
   FlowStats,
+  Auction,
+  Bid,
+  CropHealthReport,
 } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -119,5 +122,36 @@ export const optimizeRoutes = () =>
 
 export const predictWaste = () =>
   api.post("/v1/optimize/waste", {}, { timeout: 120000 }).then(r => r.data);
+
+// --- Marketplace (Auctions) ---
+export const getAuctions = (status?: string) =>
+  api.get<Auction[]>("/v1/auctions", { params: status ? { status } : {} }).then(r => r.data);
+
+export const getAuction = (id: string) =>
+  api.get<{ auction: Auction; bids: Bid[] }>(`/v1/auctions/${id}`).then(r => r.data);
+
+export const placeBid = (
+  id: string,
+  bidder_name: string,
+  bidder_type: string,
+  amount_mxn: number,
+  message: string = "",
+) =>
+  api
+    .post(`/v1/auctions/${id}/bid`, { bidder_name, bidder_type, amount_mxn, message })
+    .then(r => r.data);
+
+export const buyNow = (id: string, buyer_name: string) =>
+  api.post(`/v1/auctions/${id}/buy`, { buyer_name }).then(r => r.data);
+
+// --- Satellite Crop Monitoring ---
+export const getCropHealth = () =>
+  api.get<CropHealthReport[]>("/v1/satellite").then(r => r.data);
+
+export const getFarmHealth = (farm_id: string) =>
+  api.get<CropHealthReport>(`/v1/satellite/${farm_id}`).then(r => r.data);
+
+export const analyzeCropHealth = () =>
+  api.post<Record<string, unknown>>("/v1/satellite/analyze", {}, { timeout: 120000 }).then(r => r.data);
 
 export default api;

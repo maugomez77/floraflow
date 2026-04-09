@@ -10,6 +10,8 @@ import ShipmentDetail from "./pages/ShipmentDetail";
 import Orders from "./pages/Orders";
 import Quality from "./pages/Quality";
 import Analyze from "./pages/Analyze";
+import Marketplace from "./pages/Marketplace";
+import Satellite from "./pages/Satellite";
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
           <Route path="/orders" element={<Orders />} />
           <Route path="/quality" element={<Quality />} />
           <Route path="/analyze" element={<Analyze />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/satellite" element={<Satellite />} />
         </Routes>
       </Layout>
     </LangProvider>

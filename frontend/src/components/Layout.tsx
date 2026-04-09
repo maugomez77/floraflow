@@ -7,6 +7,8 @@ import {
   ShoppingCart,
   CheckCircle,
   Brain,
+  ShoppingBag,
+  Satellite,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useLang } from "../i18n/LangContext";
@@ -19,6 +21,8 @@ const navKeys = [
   { to: "/orders", key: "nav.orders", icon: ShoppingCart },
   { to: "/quality", key: "nav.quality", icon: CheckCircle },
   { to: "/analyze", key: "nav.analyze", icon: Brain },
+  { to: "/marketplace", key: "nav.marketplace", icon: ShoppingBag },
+  { to: "/satellite", key: "nav.satellite", icon: Satellite },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

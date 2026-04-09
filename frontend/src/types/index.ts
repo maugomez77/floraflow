@@ -120,3 +120,46 @@ export interface FlowStats {
   top_markets: string[];
   upcoming_events: string[];
 }
+
+export interface Auction {
+  id: string;
+  greenhouse_id: string;
+  seller_name: string;
+  flower_type: string;
+  variety: string;
+  stems_count: number;
+  quality_grade: "export_premium" | "first" | "second" | "third";
+  color: string;
+  stem_length_cm: number;
+  min_price_mxn: number;
+  current_bid_mxn: number;
+  buy_now_price_mxn: number;
+  status: "open" | "bidding" | "sold" | "expired" | "cancelled";
+  photos: string[];
+  expires_at: string;
+  created_at: string;
+}
+
+export interface Bid {
+  id: string;
+  auction_id: string;
+  bidder_name: string;
+  bidder_type: string;
+  amount_mxn: number;
+  message: string;
+  created_at: string;
+}
+
+export interface CropHealthReport {
+  id?: string;
+  municipality: string;
+  farm_ids: string[];
+  health_score: number;
+  ndvi_estimate: number;
+  soil_moisture: number;
+  soil_temp_c: number;
+  et0_mm: number;
+  stress_indicators: string[];
+  trend: "improving" | "stable" | "declining";
+  report_date?: string;
+}
